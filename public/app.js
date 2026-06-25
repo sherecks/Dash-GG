@@ -1,0 +1,468 @@
+// ── KPI ───────────────────────────────────────────────────────────────────────
+const kpiDefs = {
+  vol:  [
+    { id:'leads',    label:'Leads trabalhados',        fmt:'n' },
+    { id:'contatos', label:'Contatos iniciados',       fmt:'n' },
+    { id:'qualif',   label:'Aguardando atendimento IA',   fmt:'n' },
+    { id:'followup', label:'Apresentação agendada',    fmt:'n' },
+  ],
+  conv: [
+    { id:'txresp',   label:'Taxa de resposta',         fmt:'%' },
+    { id:'txqual',   label:'Taxa de qualificação',     fmt:'%' },
+    { id:'agend',    label:'Taxa Agendamentos',             fmt:'n' },
+    { id:'convlead', label:'Taxa de Reunião Realizada', fmt:'%' },
+  ],
+  rec:  [
+    { id:'reunioes', label:'Reuniões realizadas',      fmt:'n' },
+    { id:'opps',     label:'Oportunidades geradas',    fmt:'n' },
+    { id:'vendas',   label:'Vendas originadas',        fmt:'n' },
+    { id:'receita',  label:'Receita gerada',           fmt:'R$'},
+  ],
+};
+
+let kpiState = {};
+['vol','conv','rec'].forEach(g => kpiDefs[g].forEach(k => { kpiState[k.id] = { val: 0, prev: 0 }; }));
+
+// Namespace de armazenamento (marca única: Shelf)
+const STORE = 'shelf_';
+window.__STORE = STORE;
+
+// Filtro por intervalo de datas (ciclo). { start, end } em 'YYYY-MM-DD'.
+let currentRange = { start: today(), end: today() };
+
+// Cache local dos últimos KPIs buscados (fallback enquanto o Hubspot carrega).
+function saveKPIToStorage() {
+  localStorage.setItem(STORE + 'kpi', JSON.stringify({ range: currentRange, state: kpiState }));
+}
+
+function trendHTML(diff) {
+  if (diff > 0) return `<span class="trend up"><svg viewBox="0 0 12 12" fill="none"><path d="M2 9L10 3M10 3H5M10 3V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>+${Math.abs(diff)}</span>`;
+  if (diff < 0) return `<span class="trend down"><svg viewBox="0 0 12 12" fill="none"><path d="M2 3L10 9M10 9H5M10 9V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>-${Math.abs(diff)}</span>`;
+  return `<span class="trend flat">—</span>`;
+}
+
+// renderKPIs, renderCard, renderKanban: defined in BRAND FLAG section below
+
+function updateKPI(id, group, val) {
+  const s = kpiState[id];
+  const oldVal = s.val;
+  s.prev = s.val;
+  s.val = parseFloat(val) || 0;
+  if (s.val !== oldVal) {
+    const def = [...kpiDefs.vol,...kpiDefs.conv,...kpiDefs.rec].find(k => k.id === id);
+    addHist('kpi', `KPI alterado: <strong>${def ? def.label : id}</strong> — de <em>${oldVal}</em> para <em>${s.val}</em>`);
+  }
+  renderKPIs(group);
+  saveKPIToStorage();
+}
+
+// ── KANBAN ────────────────────────────────────────────────────────────────────
+let cards = [];
+let editingId = null;
+let dragId = null;
+let histFilter = 'all';
+
+function today() { return new Date().toISOString().split('T')[0]; }
+
+// Persistência dos cards no banco (servidor Bun → Supabase).
+async function loadCards() {
+  try {
+    const res = await fetch('/api/cards');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    cards = await res.json();
+  } catch (e) {
+    console.error('Falha ao carregar cards:', e);
+    cards = [];
+  }
+  renderKanban();
+}
+async function persistCard(card) {
+  const res = await fetch('/api/cards/' + card.id, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(card),
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+const stageLabel = { backlog:'Backlog', teste:'Em teste', validado:'Validado', descartado:'Descartado' };
+const prevStage  = { teste:'backlog', validado:'teste', descartado:'validado' };
+const nextSt     = { backlog:'teste', teste:'validado', validado:'descartado' };
+
+function fmtDate(d) {
+  if (!d) return '';
+  const [y,m,dy] = d.split('-');
+  return `${dy}/${m}/${y}`;
+}
+
+function isDueOverdue(due) {
+  if (!due) return false;
+  return new Date(due) < new Date(today());
+}
+
+// renderCard and renderKanban defined in BRAND FLAG section below
+
+// Initial render handled by applyBrand() at bottom of script
+
+async function moveCard(id, toStage) {
+  if (toStage === 'teste' && cards.filter(c => c.stage === 'teste').length >= 2) {
+    alert('Limite WIP atingido: máximo 2 cards em teste simultâneos.');
+    return;
+  }
+  const card = cards.find(c => c.id === id);
+  if (!card) return;
+  const fromStage = card.stage;
+  if (toStage === 'teste' && !card.date) card.date = today();
+  card.stage = toStage;
+  renderKanban();
+  addHist('move', `Card movido: <strong>${card.title}</strong> — ${stageLabel[fromStage]} → <strong>${stageLabel[toStage]}</strong>`);
+  showToast('Card movido para ' + stageLabel[toStage]);
+  try { await persistCard(card); } catch (e) { showToast('Erro ao salvar no banco'); }
+}
+
+async function deleteCard(id) {
+  const card = cards.find(c => c.id === id);
+  if (!card || !confirm('Remover este card?')) return;
+  addHist('delete', `Card removido: <strong>${card.title}</strong> (estava em ${stageLabel[card.stage]})`);
+  cards = cards.filter(c => c.id !== id);
+  renderKanban();
+  try {
+    const res = await fetch('/api/cards/' + id, { method: 'DELETE' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+  } catch (e) { showToast('Erro ao remover no banco'); }
+}
+
+// Drag & drop
+function onDragStart(e, id) {
+  dragId = id;
+  setTimeout(() => { const el = document.getElementById('kc-' + id); if(el) el.classList.add('dragging'); }, 0);
+}
+function onDragEnd() {
+  document.querySelectorAll('.kcard').forEach(el => el.classList.remove('dragging'));
+  document.querySelectorAll('.kanban-cards').forEach(el => el.classList.remove('drag-over'));
+}
+function onDragOver(e, stage) { e.preventDefault(); document.getElementById('cards-' + stage).classList.add('drag-over'); }
+function onDragLeave(e, stage) { document.getElementById('cards-' + stage).classList.remove('drag-over'); }
+async function onDrop(e, stage) {
+  e.preventDefault();
+  document.querySelectorAll('.kanban-cards').forEach(el => el.classList.remove('drag-over'));
+  if (dragId === null) return;
+  const card = cards.find(c => c.id === dragId);
+  if (!card || card.stage === stage) { dragId = null; return; }
+  if (stage === 'teste' && cards.filter(c => c.stage === 'teste').length >= 2) {
+    alert('Limite WIP atingido: máximo 2 cards em teste simultâneos.');
+    dragId = null; return;
+  }
+  const fromStage = card.stage;
+  if (stage === 'teste' && !card.date) card.date = today();
+  card.stage = stage;
+  dragId = null;
+  renderKanban();
+  addHist('move', `Card movido: <strong>${card.title}</strong> — ${stageLabel[fromStage]} → <strong>${stageLabel[stage]}</strong>`);
+  showToast('Card movido para ' + stageLabel[stage]);
+  try { await persistCard(card); } catch (e) { showToast('Erro ao salvar no banco'); }
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function openModal(stage) {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Novo card de teste';
+  document.getElementById('m-title').value = '';
+  document.getElementById('m-stage').value = stage;
+  document.getElementById('m-owner').value = '';
+  document.getElementById('m-date').value = '';
+  document.getElementById('m-due').value = '';
+  document.getElementById('m-hyp').value = '';
+  document.getElementById('m-result').value = '';
+  document.getElementById('modal').classList.add('open');
+}
+function openEditModal(id) {
+  const card = cards.find(c => c.id === id);
+  if (!card) return;
+  editingId = id;
+  document.getElementById('modal-title').textContent = 'Editar card';
+  document.getElementById('m-title').value = card.title;
+  document.getElementById('m-stage').value = card.stage;
+  document.getElementById('m-owner').value = card.owner || '';
+  document.getElementById('m-date').value = card.date || '';
+  document.getElementById('m-due').value = card.due || '';
+  document.getElementById('m-hyp').value = card.hyp || '';
+  document.getElementById('m-result').value = card.result || '';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); editingId = null; }
+document.getElementById('modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+async function saveCard() {
+  const title = document.getElementById('m-title').value.trim();
+  if (!title) { alert('Informe o título do card.'); return; }
+  const stage = document.getElementById('m-stage').value;
+  if (stage === 'teste') {
+    const count = cards.filter(c => c.stage === 'teste' && c.id !== editingId).length;
+    if (count >= 2) { alert('Limite WIP: máximo 2 cards em teste.'); return; }
+  }
+  const data = {
+    title, stage,
+    owner: document.getElementById('m-owner').value.trim(),
+    date: document.getElementById('m-date').value,
+    due: document.getElementById('m-due').value,
+    hyp: document.getElementById('m-hyp').value.trim(),
+    result: document.getElementById('m-result').value.trim(),
+  };
+  for (const [campo, rotulo] of [['date', 'início'], ['due', 'entrega']]) {
+    const v = data[campo];
+    if (v && Number(v.slice(0, 4)) < 2000) {
+      alert(`Data de ${rotulo} inválida (ano). Verifique o campo.`);
+      return;
+    }
+  }
+  try {
+    if (editingId !== null) {
+      const updated = await persistCard({ id: editingId, ...data });
+      const i = cards.findIndex(c => c.id === editingId);
+      if (i >= 0) cards[i] = updated;
+      addHist('edit', `Card editado: <strong>${title}</strong>${data.owner ? ' — responsável: '+data.owner : ''}${data.due ? ' — entrega: '+fmtDate(data.due) : ''}`);
+      showToast('Card atualizado');
+    } else {
+      const res = await fetch('/api/cards', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      cards.push(await res.json());
+      addHist('card', `Novo card criado: <strong>${title}</strong> em ${stageLabel[stage]}${data.owner ? ' — responsável: '+data.owner : ''}${data.due ? ' — entrega: '+fmtDate(data.due) : ''}`);
+      showToast('Card criado com sucesso');
+    }
+  } catch (e) {
+    console.error('Falha ao salvar card:', e);
+    showToast('Erro ao salvar no banco');
+    return;
+  }
+  closeModal();
+  renderKanban();
+}
+
+// ── HISTÓRICO ─────────────────────────────────────────────────────────────────
+let history = [];
+
+// Load happens in applyBrand() after namespace is known
+function saveHist() { localStorage.setItem((window.__STORE||'dash_') + 'hist', JSON.stringify(history)); }
+
+function addHist(type, desc) {
+  const now = new Date();
+  const time = now.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+  history.unshift({ type, desc, time, ts: now.getTime() });
+  if (history.length > 200) history = history.slice(0, 200);
+  saveHist();
+  updateHistBadge();
+  if (document.getElementById('hist-drawer').classList.contains('open')) renderHist();
+}
+
+function updateHistBadge() {
+  const badge = document.getElementById('hist-count-badge');
+  if (history.length > 0) {
+    badge.textContent = history.length > 99 ? '99+' : history.length;
+    badge.style.display = 'inline';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+const typeBadge = {
+  kpi:    ['hb-kpi',    'KPI'],
+  card:   ['hb-card',   'Novo card'],
+  move:   ['hb-move',   'Movimento'],
+  delete: ['hb-delete', 'Exclusão'],
+  edit:   ['hb-edit',   'Edição'],
+};
+
+function renderHist() {
+  const list = document.getElementById('hist-list');
+  const filtered = histFilter === 'all' ? history : history.filter(h => h.type === histFilter);
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="hist-empty">Nenhuma alteração registrada ainda.</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(h => {
+    const [cls, label] = typeBadge[h.type] || ['hb-card','Ação'];
+    return `<div class="hist-item">
+      <div><span class="hist-badge ${cls}">${label}</span></div>
+      <div class="hist-item-top">
+        <div class="hist-item-desc">${h.desc}</div>
+        <div class="hist-item-time">${h.time}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openHist() {
+  document.getElementById('hist-backdrop').classList.add('open');
+  document.getElementById('hist-drawer').classList.add('open');
+  renderHist();
+}
+function closeHist() {
+  document.getElementById('hist-backdrop').classList.remove('open');
+  document.getElementById('hist-drawer').classList.remove('open');
+}
+function clearHist() {
+  if (!confirm('Limpar todo o histórico?')) return;
+  history = [];
+  saveHist();
+  updateHistBadge();
+  renderHist();
+}
+function setFilter(f, btn) {
+  histFilter = f;
+  document.querySelectorAll('.hist-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderHist();
+}
+
+// ── SAVE ALL ──────────────────────────────────────────────────────────────────
+function saveAll() {
+  // Cards já persistem no banco a cada ação; aqui salvamos só KPIs e histórico (locais).
+  saveKPIToStorage();
+  saveHist();
+  addHist('edit', 'Dados salvos manualmente pelo usuário');
+  showToast('Dados salvos com sucesso');
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── FILTRO POR INTERVALO DE DATAS ───────────────────────────────────────────────
+function fmtDateBR(d) {
+  if (!d) return '';
+  const [y, m, dy] = d.split('-');
+  return `${dy}/${m}/${y}`;
+}
+
+function updateHeaderDate() {
+  const { start, end } = currentRange;
+  document.getElementById('header-date').textContent =
+    start === end ? fmtDateBR(start) : `${fmtDateBR(start)} → ${fmtDateBR(end)}`;
+}
+
+// Aplica o intervalo escolhido nos campos de data e busca os KPIs.
+function applyRange() {
+  const start = document.getElementById('dt-start').value;
+  const end = document.getElementById('dt-end').value;
+  if (!start || !end) { alert('Escolha as duas datas (de e até).'); return; }
+  if (start > end) { alert('A data inicial não pode ser maior que a final.'); return; }
+  currentRange = { start, end };
+  localStorage.setItem(STORE + 'range', JSON.stringify(currentRange));
+  updateHeaderDate();
+  loadKPIsFromHubspot();
+}
+
+// ── HUBSPOT ────────────────────────────────────────────────────────────────────
+// Chama o backend (Bun) em /api/kpis, que guarda o token e faz os search no Hubspot.
+// A resposta vem como { kpis: { <id>: número } } e é mesclada no kpiState.
+async function loadKPIsFromHubspot() {
+  try {
+    const q = `?start=${currentRange.start}&end=${currentRange.end}`;
+    const res = await fetch('/api/kpis' + q);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    Object.entries(data.kpis || {}).forEach(([id, val]) => {
+      if (kpiState[id]) {
+        kpiState[id].prev = kpiState[id].val;
+        kpiState[id].val = Number(val) || 0;
+      }
+    });
+    ['vol','conv','rec'].forEach(g => renderKPIs(g));
+    saveKPIToStorage();
+    showToast('KPIs atualizados do Hubspot');
+  } catch (e) {
+    console.error('Falha ao buscar KPIs do Hubspot:', e);
+    // Sem backend rodando (ex: abrindo o HTML solto), mantém os valores locais.
+  }
+}
+
+function renderKPIs(group) {
+  const container = document.getElementById(group + '-rows');
+  container.innerHTML = kpiDefs[group].map(k => {
+    const s = kpiState[k.id];
+    const diff = s.val - s.prev;
+    const isR = k.fmt === 'R$';
+    return `<div class="kpi-row">
+      <span class="kpi-label">${k.label}</span>
+      <div class="kpi-right">
+        ${trendHTML(diff)}
+        <div class="kpi-input-wrap">
+          <input class="kpi-input${isR?' has-unit':''}" type="number" min="0" value="${s.val}"
+            id="inp-${k.id}" onchange="updateKPI('${k.id}','${group}',this.value)">
+          ${isR ? '<span class="kpi-unit">R$</span>' : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderCard(card) {
+  const pStage = prevStage[card.stage];
+  const nStage = nextSt[card.stage];
+  const overdue = isDueOverdue(card.due);
+  return `<div class="kcard" id="kc-${card.id}" draggable="true"
+      ondragstart="onDragStart(event,${card.id})"
+      ondragend="onDragEnd(event)">
+    <div class="kcard-title">${card.title}</div>
+    ${card.hyp ? `<div class="kcard-hyp">"${card.hyp.length > 70 ? card.hyp.slice(0,70)+'…' : card.hyp}"</div>` : ''}
+    ${card.result ? `<div class="kcard-result">✓ ${card.result.length > 60 ? card.result.slice(0,60)+'…' : card.result}</div>` : ''}
+    <div class="kcard-meta">
+      ${card.owner ? `<span class="kcard-chip owner-chip">👤 ${card.owner}</span>` : ''}
+      ${card.due   ? `<span class="kcard-chip due-chip${overdue?' overdue':''}">🗓 Entrega: ${fmtDate(card.due)}${overdue?' ⚠️':''}</span>` : ''}
+      ${card.date  ? `<span class="kcard-chip">▶ Início: ${fmtDate(card.date)}</span>` : ''}
+    </div>
+    <div class="kcard-actions">
+      ${pStage ? `<button class="kcard-btn" onclick="moveCard(${card.id},'${pStage}')">← ${stageLabel[pStage]}</button>` : ''}
+      ${nStage ? `<button class="kcard-btn" onclick="moveCard(${card.id},'${nStage}')">${stageLabel[nStage]} →</button>` : ''}
+      <button class="kcard-btn edit-btn" onclick="openEditModal(${card.id})">Editar</button>
+      <button class="kcard-btn del-btn" onclick="deleteCard(${card.id})">✕</button>
+    </div>
+  </div>`;
+}
+
+function renderKanban() {
+  ['backlog','teste','validado','descartado'].forEach(stage => {
+    const col = document.getElementById('cards-' + stage);
+    const stageCards = cards.filter(c => c.stage === stage);
+    col.innerHTML = stageCards.map(c => renderCard(c)).join('');
+    document.getElementById('cnt-' + stage).textContent = stageCards.length;
+  });
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+(function init() {
+  document.title = 'Dashboard de Gestão à Vista — Shelf';
+
+  // Intervalo salvo (default: hoje → hoje)
+  const savedRange = localStorage.getItem(STORE + 'range');
+  if (savedRange) currentRange = JSON.parse(savedRange);
+  document.getElementById('dt-start').value = currentRange.start;
+  document.getElementById('dt-end').value = currentRange.end;
+
+  // Carrega cache local dos KPIs (fallback até o Hubspot responder)
+  const kpiSaved = localStorage.getItem(STORE + 'kpi');
+  if (kpiSaved) {
+    try { kpiState = JSON.parse(kpiSaved).state || kpiState; } catch {}
+  }
+  ['vol','conv','rec'].forEach(g => renderKPIs(g));
+  updateHeaderDate();
+
+  // Carrega cards do banco (Supabase, via /api/cards)
+  loadCards();
+
+  // Carrega histórico
+  const histSaved = localStorage.getItem(STORE + 'hist');
+  if (histSaved) history = JSON.parse(histSaved);
+  updateHistBadge();
+
+  // Busca os KPIs do Hubspot ao abrir (silencioso se o backend não estiver no ar)
+  loadKPIsFromHubspot();
+})();

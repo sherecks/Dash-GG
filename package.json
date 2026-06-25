@@ -1,0 +1,16 @@
+{
+  "name": "dash-gg",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"bun run dev:api\" \"bun run dev:web\"",
+    "dev:api": "bun --watch server/index.js",
+    "dev:web": "vite",
+    "build": "vite build",
+    "start": "bun server/index.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "vite": "^6.0.7"
+  }
+}
