@@ -9,13 +9,9 @@ const kpiDefs = {
   conv: [
     { id:'txresp',   label:'Taxa de resposta',         fmt:'%' },
     { id:'txqual',   label:'Taxa de qualificação',     fmt:'%' },
-    { id:'agend',    label:'Taxa Agendamentos',             fmt:'n' },
-    { id:'convlead', label:'Taxa de Reunião Realizada', fmt:'%' },
   ],
   rec:  [
-    { id:'reunioes', label:'Reuniões realizadas',      fmt:'n' },
     { id:'opps',     label:'Oportunidades geradas',    fmt:'n' },
-    { id:'vendas',   label:'Vendas originadas',        fmt:'n' },
     { id:'receita',  label:'Receita gerada',           fmt:'R$'},
   ],
 };
@@ -23,9 +19,22 @@ const kpiDefs = {
 let kpiState = {};
 ['vol','conv','rec'].forEach(g => kpiDefs[g].forEach(k => { kpiState[k.id] = { val: 0, prev: 0 }; }));
 
-// Namespace de armazenamento (marca única: Shelf)
-const STORE = 'shelf_';
+// ── MARCAS ──────────────────────────────────────────────────────────────────────
+const BRANDS = {
+  shelf2: { pill: '300',},
+  maria:  { pill: '300', },
+};
+const currentBrand = BRANDS[new URLSearchParams(location.search).get('brand')] ? new URLSearchParams(location.search).get('brand') : 'shelf2';
+
+// Namespace de armazenamento por marca (cache de KPIs, histórico, intervalo).
+const STORE = currentBrand + '_';
 window.__STORE = STORE;
+
+function switchBrand(key) {
+  const url = new URL(location.href);
+  url.searchParams.set('brand', key);
+  location.href = url.toString();
+}
 
 // Filtro por intervalo de datas (ciclo). { start, end } em 'YYYY-MM-DD'.
 let currentRange = { start: today(), end: today() };
@@ -67,7 +76,7 @@ function today() { return new Date().toISOString().split('T')[0]; }
 // Persistência dos cards no banco (servidor Bun → Supabase).
 async function loadCards() {
   try {
-    const res = await fetch('/api/cards');
+    const res = await fetch('/api/cards?brand=' + currentBrand);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     cards = await res.json();
   } catch (e) {
@@ -224,7 +233,7 @@ async function saveCard() {
       addHist('edit', `Card editado: <strong>${title}</strong>${data.owner ? ' — responsável: '+data.owner : ''}${data.due ? ' — entrega: '+fmtDate(data.due) : ''}`);
       showToast('Card atualizado');
     } else {
-      const res = await fetch('/api/cards', {
+      const res = await fetch('/api/cards?brand=' + currentBrand, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
@@ -365,7 +374,7 @@ function applyRange() {
 // A resposta vem como { kpis: { <id>: número } } e é mesclada no kpiState.
 async function loadKPIsFromHubspot() {
   try {
-    const q = `?start=${currentRange.start}&end=${currentRange.end}`;
+    const q = `?brand=${currentBrand}&start=${currentRange.start}&end=${currentRange.end}`;
     const res = await fetch('/api/kpis' + q);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
@@ -439,7 +448,13 @@ function renderKanban() {
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 (function init() {
-  document.title = 'Dashboard de Gestão à Vista — Shelf';
+  // Aplica a marca atual (pill, subtítulo, título e botão ativo no seletor)
+  const brand = BRANDS[currentBrand];
+  document.getElementById('brand-pill').textContent = brand.pill;
+  document.getElementById('brand-sub').textContent = brand.sub;
+  document.title = 'Dashboard de Gestão à Vista — ' + brand.pill;
+  document.getElementById('bs-shelf2').classList.toggle('active', currentBrand === 'shelf2');
+  document.getElementById('bs-maria').classList.toggle('active', currentBrand === 'maria');
 
   // Intervalo salvo (default: hoje → hoje)
   const savedRange = localStorage.getItem(STORE + 'range');

@@ -51,8 +51,18 @@ export const PIPELINES = {
   },
 };
 
-// Marca da operação. TODA busca é restrita a ela (o funil tem deals de várias marcas).
-export const BRAND = { property: 'marca_associada', value: 'Shelf 2' };
+// Marcas da operação. TODA busca é restrita a uma marca (o funil é compartilhado).
+// Shelf e Maria Lavadeira estão no MESMO funil (Funil de Vendas [300F]), então
+// compartilham o mesmo mapeamento de etapas (KPI_SOURCES) — só muda o filtro.
+export const BRAND_PROPERTY = 'marca_associada';
+export const BRANDS = {
+  shelf2: { marca: 'Shelf 2',         label: 'Shelf 2' },
+  // `props` sobrescreve a dateProperty de um KPI só para esta marca.
+  // Contatos da Maria usam a data de resposta do lead (Consultia), não o WhatsApp.
+  maria:  { marca: 'Maria Lavadeira', label: 'Maria Lavadeira',
+            props: { contatos: 'consultia_data__resposta_do_lead' } },
+};
+export const DEFAULT_BRAND = 'shelf2';
 
 const FV = PIPELINES['Funil de Vendas [300F]'];
 const stage = (nome) => FV.stages[nome];

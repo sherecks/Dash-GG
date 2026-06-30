@@ -1,6 +1,6 @@
 import { join } from 'path';
 import { searchCountByDate, rangeBounds } from './hubspot.js';
-import { KPI_SOURCES, BRAND } from './kpiMap.js';
+import { KPI_SOURCES, BRANDS, BRAND_PROPERTY, DEFAULT_BRAND } from './kpiMap.js';
 import { db, toCard } from './db.js';
 
 const PORT = process.env.PORT || 3000;
@@ -15,18 +15,24 @@ function todaySP() {
   return sp.toISOString().slice(0, 10);
 }
 
+const brandKey = (k) => (BRANDS[k] ? k : DEFAULT_BRAND);
+
 // Busca os KPIs em SEQUÊNCIA com intervalo, respeitando o rate limit do Hubspot
 // (search: ~limite por segundo; 150 req / 10s no geral). Devolve { id: total }.
-async function getKpis(startDate, endDate) {
+async function getKpis(brand, startDate, endDate) {
   const { start, end } = rangeBounds(startDate, endDate);
+  const cfg = BRANDS[brand];
+  const filter = { property: BRAND_PROPERTY, value: cfg.marca };
   const kpis = {};
-  console.log(`\n[KPIs] ${startDate} -> ${endDate}  | marca: ${BRAND.value}`);
+  console.log(`\n[KPIs] ${startDate} -> ${endDate}  | marca: ${filter.value}`);
   for (const src of KPI_SOURCES) {
+    // Permite sobrescrever a propriedade de data por marca (ex.: contatos da Maria).
+    const dateProperty = (cfg.props && cfg.props[src.kpiId]) || src.dateProperty;
     const count = await searchCountByDate({
-      dateProperty: src.dateProperty,
+      dateProperty,
       pipelineId: src.pipelineId,
       stageId: src.stageId,
-      brand: BRAND,
+      brand: filter,
       start,
       end,
     });
@@ -35,7 +41,7 @@ async function getKpis(startDate, endDate) {
     console.log(`  ${src.kpiId.padEnd(9)} = ${String(count).padStart(5)}   ${src.label}`);
     await sleep(250); // ~4 req/s
   }
-  return { start: startDate, end: endDate, kpis };
+  return { brand, start: startDate, end: endDate, kpis };
 }
 
 // ── CARDS (quadro de testes) ───────────────────────────────────────────────────
@@ -43,16 +49,17 @@ async function handleCards(req, url) {
   if (!db) return Response.json({ error: 'DATABASE_URL não configurada no .env' }, { status: 503 });
   const method = req.method;
   const idMatch = url.pathname.match(/^\/api\/cards\/(\d+)$/);
+  const brand = brandKey(url.searchParams.get('brand'));
   try {
     if (method === 'GET' && url.pathname === '/api/cards') {
-      const rows = await db`select * from cards order by position, id`;
+      const rows = await db`select * from cards where brand=${brand} order by position, id`;
       return Response.json(rows.map(toCard));
     }
     if (method === 'POST' && url.pathname === '/api/cards') {
       const b = await req.json();
       const [row] = await db`
-        insert into cards (title, stage, owner, start_date, due_date, hyp, result)
-        values (${b.title}, ${b.stage || 'backlog'}, ${b.owner || ''},
+        insert into cards (brand, title, stage, owner, start_date, due_date, hyp, result)
+        values (${brand}, ${b.title}, ${b.stage || 'backlog'}, ${b.owner || ''},
                 ${b.date || null}, ${b.due || null}, ${b.hyp || ''}, ${b.result || ''})
         returning *`;
       return Response.json(toCard(row));
@@ -94,12 +101,13 @@ Bun.serve({
 
     // ── API ──
     if (url.pathname === '/api/kpis') {
+      const brand = brandKey(url.searchParams.get('brand'));
       const start = url.searchParams.get('start');
       const end = url.searchParams.get('end');
       const s = isDate(start) ? start : todaySP();
       const e = isDate(end) ? end : s;
       try {
-        return Response.json(await getKpis(s, e));
+        return Response.json(await getKpis(brand, s, e));
       } catch (err) {
         console.error('Erro /api/kpis:', err.message);
         return Response.json({ error: String(err.message) }, { status: 500 });
