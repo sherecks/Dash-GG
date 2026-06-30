@@ -81,6 +81,8 @@
   .kpi-input { background: var(--surface3); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font); font-size: 17px; font-weight: 700; width: 88px; text-align: right; padding: 4px 8px; outline: none; transition: border-color .15s; -moz-appearance: textfield; }
   .kpi-input::-webkit-inner-spin-button { display: none; }
   .kpi-input:focus { border-color: var(--accent); background: rgba(227,0,0,0.06); }
+  .kpi-input.readonly { cursor: default; color: var(--text-sec); background: var(--surface2); }
+  .kpi-input.readonly:focus { border-color: var(--border-strong); background: var(--surface2); }
   .kpi-unit { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 10px; color: var(--text-ter); pointer-events: none; }
   .kpi-input.has-unit { padding-right: 20px; }
   .trend { display: flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; min-width: 44px; justify-content: flex-end; }

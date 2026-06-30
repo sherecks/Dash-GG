@@ -369,6 +369,21 @@ function applyRange() {
   loadKPIsFromHubspot();
 }
 
+// ── TAXAS (derivadas dos contadores) ────────────────────────────────────────────
+// Calculadas localmente a partir de leads/contatos/followup — sem buscas extras.
+// Direção: parte de baixo do funil ÷ leads, resultando em 0–100%.
+function computeRates() {
+  const v = (id) => (kpiState[id] ? kpiState[id].val : 0);
+  const pct = (num, den) => (den > 0 ? Math.round((num / den) * 100) : 0);
+  const setVal = (id, value) => {
+    if (!kpiState[id]) return;
+    kpiState[id].prev = kpiState[id].val;
+    kpiState[id].val = value;
+  };
+  setVal('txresp', pct(v('contatos'), v('leads')));   // contatos ÷ leads
+  setVal('txqual', pct(v('followup'), v('leads')));   // apresentação agendada ÷ leads
+}
+
 // ── HUBSPOT ────────────────────────────────────────────────────────────────────
 // Chama o backend (Bun) em /api/kpis, que guarda o token e faz os search no Hubspot.
 // A resposta vem como { kpis: { <id>: número } } e é mesclada no kpiState.
@@ -384,6 +399,7 @@ async function loadKPIsFromHubspot() {
         kpiState[id].val = Number(val) || 0;
       }
     });
+    computeRates();
     ['vol','conv','rec'].forEach(g => renderKPIs(g));
     saveKPIToStorage();
     showToast('KPIs atualizados do Hubspot');
@@ -398,15 +414,16 @@ function renderKPIs(group) {
   container.innerHTML = kpiDefs[group].map(k => {
     const s = kpiState[k.id];
     const diff = s.val - s.prev;
-    const isR = k.fmt === 'R$';
+    const unit = k.fmt === 'R$' ? 'R$' : (k.fmt === '%' ? '%' : '');
+    const ro = k.fmt === '%';   // taxas são derivadas → somente leitura
     return `<div class="kpi-row">
       <span class="kpi-label">${k.label}</span>
       <div class="kpi-right">
         ${trendHTML(diff)}
         <div class="kpi-input-wrap">
-          <input class="kpi-input${isR?' has-unit':''}" type="number" min="0" value="${s.val}"
-            id="inp-${k.id}" onchange="updateKPI('${k.id}','${group}',this.value)">
-          ${isR ? '<span class="kpi-unit">R$</span>' : ''}
+          <input class="kpi-input${unit?' has-unit':''}${ro?' readonly':''}" type="number" min="0" value="${s.val}"
+            id="inp-${k.id}"${ro ? ' readonly title="Calculado automaticamente"' : ` onchange="updateKPI('${k.id}','${group}',this.value)"`}>
+          ${unit ? `<span class="kpi-unit">${unit}</span>` : ''}
         </div>
       </div>
     </div>`;
