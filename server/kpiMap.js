@@ -79,7 +79,7 @@ export const KPI_SOURCES = [
   { kpiId: 'qualif',   dateProperty: 'createdate', stageId: stage('Aguardando Atendimento IA'), label: 'Pré Qualificados — etapa atual: Aguardando Atendimento IA' },
   { kpiId: 'followup', dateProperty: 'createdate', stageId: stage('Apresentação Agendada'),     label: 'Qualificados — etapa atual: Apresentação Agendada' },
 
-  // ⏳ CONVERSÃO / RECEITA — aguardando sua definição (provisório p/ teste)
-  { kpiId: 'reunioes', dateProperty: 'createdate', stageId: stage('Apresentação Realizada'), label: 'Reuniões — etapa atual: Apresentação Realizada' },
-  { kpiId: 'vendas',   dateProperty: 'createdate', stageId: stage('Venda'),                  label: 'Vendas — etapa atual: Venda' },
+  // RECEITA
+  { kpiId: 'opps',     dateProperty: 'createdate', stageId: stage('Fechamento Realizado'),      label: 'Oportunidades geradas — etapa atual: Fechamento Realizado' },
+  // ⏳ receita — aguardando definição da propriedade de valor
 ];
