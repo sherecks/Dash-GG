@@ -56,7 +56,7 @@ export const PIPELINES = {
 // compartilham o mesmo mapeamento de etapas (KPI_SOURCES) — só muda o filtro.
 export const BRAND_PROPERTY = 'marca_associada';
 export const BRANDS = {
-  shelf2: { marca: 'Shelf 2',         label: 'Shelf 2' },
+  shelf2: { marca: 'Shelf',           label: 'Shelf' },
   // `props` sobrescreve a dateProperty de um KPI só para esta marca.
   // Contatos da Maria usam a data de resposta do lead (Consultia), não o WhatsApp.
   maria:  { marca: 'Maria Lavadeira', label: 'Maria Lavadeira',
