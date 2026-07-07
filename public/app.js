@@ -3,8 +3,8 @@ const kpiDefs = {
   vol:  [
     { id:'leads',    label:'Leads trabalhados',        fmt:'n' },
     { id:'contatos', label:'Contatos iniciados',       fmt:'n' },
-    { id:'qualif',   label:'Aguardando atendimento IA',   fmt:'n' },
-    { id:'followup', label:'Apresentação agendada',    fmt:'n' },
+    { id:'qualif',   label:'Convidado Webinar',        fmt:'n' },
+    { id:'followup', label:'Conferencia Agendada',     fmt:'n' },
   ],
   conv: [
     { id:'txresp',   label:'Taxa de resposta',         fmt:'%' },

@@ -82,8 +82,9 @@ export const BRANDS = {
 };
 export const DEFAULT_BRAND = 'shelf2';
 
-const FV = PIPELINES['Funil de Vendas [300F]'];
-const stage = (nome) => FV.stages[nome];
+// Operação migrada para o Funil Inovação [300F] (deals saíram do Funil de Vendas).
+const FI = PIPELINES['Funil Inovação [300F]'];
+const stage = (nome) => FI.stages[nome];
 
 // ── Mapeamento: KPI do dashboard → contagem no Hubspot ──────────────────────────
 // Modelo "etapa atual" (igual ao gráfico do Hubspot): conta deals CRIADOS no
@@ -91,13 +92,13 @@ const stage = (nome) => FV.stages[nome];
 // Sem `stageId`, conta só pela `dateProperty` no período. `pipelineId` restringe
 // ao funil. Toda busca é filtrada pela marca (ver index.js).
 export const KPI_SOURCES = [
-  // VOLUME
-  { kpiId: 'leads',    dateProperty: 'createdate',                     pipelineId: FV.id, label: 'Leads Trabalhados — criados no período' },
-  { kpiId: 'contatos', dateProperty: 'data_da_1_resposta_de_whatsapp', pipelineId: FV.id, label: 'Contatos Iniciados — 1ª resposta WhatsApp' },
-  { kpiId: 'qualif',   dateProperty: 'createdate', stageId: stage('Aguardando Atendimento IA'), label: 'Pré Qualificados — etapa atual: Aguardando Atendimento IA' },
-  { kpiId: 'followup', dateProperty: 'createdate', stageId: stage('Apresentação Agendada'),     label: 'Qualificados — etapa atual: Apresentação Agendada' },
+  // VOLUME (Funil Inovação)
+  { kpiId: 'leads',    dateProperty: 'createdate',                     pipelineId: FI.id, label: 'Leads Trabalhados — Lead Novo (criados no Funil Inovação)' },
+  { kpiId: 'contatos', dateProperty: 'data_da_1_resposta_de_whatsapp', pipelineId: FI.id, label: 'Contatos Iniciados — 1ª resposta WhatsApp' },
+  { kpiId: 'qualif',   dateProperty: 'createdate', stageId: stage('Convidado Webinar'),    label: 'Qualif — etapa atual: Convidado Webinar' },
+  { kpiId: 'followup', dateProperty: 'createdate', stageId: stage('Conferencia Agendada'), label: 'Followup — etapa atual: Conferencia Agendada' },
 
   // RECEITA
-  { kpiId: 'opps',     dateProperty: 'createdate', stageId: stage('Fechamento Realizado'),      label: 'Oportunidades geradas — etapa atual: Fechamento Realizado' },
+  { kpiId: 'opps',     dateProperty: 'createdate', stageId: stage('Conferencia Realizada'), label: 'Oportunidades geradas — etapa atual: Conferencia Realizada' },
   // ⏳ receita — aguardando definição da propriedade de valor
 ];
