@@ -99,6 +99,9 @@ async function persistCard(card) {
   return res.json();
 }
 
+// Limite WIP da coluna "Em teste" (máximo de cards simultâneos).
+const WIP_LIMIT = 10;
+
 const stageLabel = { backlog:'Backlog', teste:'Em teste', validado:'Validado', descartado:'Descartado' };
 const prevStage  = { teste:'backlog', validado:'teste', descartado:'validado' };
 const nextSt     = { backlog:'teste', teste:'validado', validado:'descartado' };
@@ -119,8 +122,8 @@ function isDueOverdue(due) {
 // Initial render handled by applyBrand() at bottom of script
 
 async function moveCard(id, toStage) {
-  if (toStage === 'teste' && cards.filter(c => c.stage === 'teste').length >= 2) {
-    alert('Limite WIP atingido: máximo 2 cards em teste simultâneos.');
+  if (toStage === 'teste' && cards.filter(c => c.stage === 'teste').length >= WIP_LIMIT) {
+    alert('Limite WIP atingido: máximo ' + WIP_LIMIT + ' cards em teste simultâneos.');
     return;
   }
   const card = cards.find(c => c.id === id);
@@ -164,8 +167,8 @@ async function onDrop(e, stage) {
   if (dragId === null) return;
   const card = cards.find(c => c.id === dragId);
   if (!card || card.stage === stage) { dragId = null; return; }
-  if (stage === 'teste' && cards.filter(c => c.stage === 'teste').length >= 2) {
-    alert('Limite WIP atingido: máximo 2 cards em teste simultâneos.');
+  if (stage === 'teste' && cards.filter(c => c.stage === 'teste').length >= WIP_LIMIT) {
+    alert('Limite WIP atingido: máximo ' + WIP_LIMIT + ' cards em teste simultâneos.');
     dragId = null; return;
   }
   const fromStage = card.stage;
@@ -214,7 +217,7 @@ async function saveCard() {
   const stage = document.getElementById('m-stage').value;
   if (stage === 'teste') {
     const count = cards.filter(c => c.stage === 'teste' && c.id !== editingId).length;
-    if (count >= 2) { alert('Limite WIP: máximo 2 cards em teste.'); return; }
+    if (count >= WIP_LIMIT) { alert('Limite WIP: máximo ' + WIP_LIMIT + ' cards em teste.'); return; }
   }
   const data = {
     title, stage,
