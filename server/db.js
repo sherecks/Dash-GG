@@ -33,3 +33,21 @@ export function toCard(r) {
     result: r.result || '',
   };
 }
+
+// Converte a linha de um grupo (pilha recolhível) para o formato do front.
+// card_ids pode vir como array JS ou como literal Postgres ("{2,3}") — trata ambos.
+export function toGroup(r) {
+  let ids = r.card_ids;
+  if (typeof ids === 'string') ids = ids.replace(/[{}]/g, '').split(',').filter(Boolean);
+  return {
+    id: Number(r.id),
+    name: r.name,
+    cardIds: (ids || []).map(Number),
+    collapsed: r.collapsed,
+  };
+}
+
+// Monta o literal de array do Postgres a partir de uma lista de ids. Ex.: [2,3] → "{2,3}"
+export function pgIntArray(list) {
+  return '{' + (list || []).map(Number).filter((n) => Number.isFinite(n)).join(',') + '}';
+}

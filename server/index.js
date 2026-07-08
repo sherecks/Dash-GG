@@ -1,7 +1,7 @@
 import { join } from 'path';
 import { searchCountByDate, rangeBounds } from './hubspot.js';
 import { KPI_SOURCES, BRANDS, BRAND_PROPERTY, DEFAULT_BRAND } from './kpiMap.js';
-import { db, toCard } from './db.js';
+import { db, toCard, toGroup, pgIntArray } from './db.js';
 
 const PORT = process.env.PORT || 3000;
 const DIST = join(import.meta.dir, '..', 'dist');
@@ -75,12 +75,53 @@ async function handleCards(req, url) {
       return row ? Response.json(toCard(row)) : new Response('Not found', { status: 404 });
     }
     if (method === 'DELETE' && idMatch) {
-      await db`delete from cards where id=${Number(idMatch[1])}`;
+      const cid = Number(idMatch[1]);
+      await db`delete from cards where id=${cid}`;
+      // tira o card dos grupos e dissolve grupos que ficaram com menos de 2 membros
+      await db`update groups set card_ids = array_remove(card_ids, ${cid}::bigint) where ${cid}::bigint = any(card_ids)`;
+      await db`delete from groups where coalesce(array_length(card_ids, 1), 0) < 2`;
       return new Response(null, { status: 204 });
     }
     return new Response('Method not allowed', { status: 405 });
   } catch (e) {
     console.error('Erro /api/cards:', e.message);
+    return Response.json({ error: String(e.message) }, { status: 500 });
+  }
+}
+
+// ── GRUPOS (pilha recolhível — nome + lista de card ids) ────────────────────────
+async function handleGroups(req, url) {
+  if (!db) return Response.json({ error: 'DATABASE_URL não configurada no .env' }, { status: 503 });
+  const method = req.method;
+  const idMatch = url.pathname.match(/^\/api\/groups\/(\d+)$/);
+  const brand = brandKey(url.searchParams.get('brand'));
+  try {
+    if (method === 'GET' && url.pathname === '/api/groups') {
+      const rows = await db`select * from groups where brand=${brand} order by id`;
+      return Response.json(rows.map(toGroup));
+    }
+    if (method === 'POST' && url.pathname === '/api/groups') {
+      const b = await req.json();
+      const [row] = await db`
+        insert into groups (brand, name, card_ids, collapsed)
+        values (${brand}, ${b.name}, ${pgIntArray(b.cardIds)}::bigint[], ${b.collapsed ?? true})
+        returning *`;
+      return Response.json(toGroup(row));
+    }
+    if (method === 'PUT' && idMatch) {
+      const b = await req.json();
+      const [row] = await db`
+        update groups set name=${b.name}, card_ids=${pgIntArray(b.cardIds)}::bigint[], collapsed=${b.collapsed}
+        where id=${Number(idMatch[1])} returning *`;
+      return row ? Response.json(toGroup(row)) : new Response('Not found', { status: 404 });
+    }
+    if (method === 'DELETE' && idMatch) {
+      await db`delete from groups where id=${Number(idMatch[1])}`;
+      return new Response(null, { status: 204 });
+    }
+    return new Response('Method not allowed', { status: 405 });
+  } catch (e) {
+    console.error('Erro /api/groups:', e.message);
     return Response.json({ error: String(e.message) }, { status: 500 });
   }
 }
@@ -117,6 +158,11 @@ Bun.serve({
     // ── Cards (quadro de testes) ──
     if (url.pathname === '/api/cards' || url.pathname.startsWith('/api/cards/')) {
       return handleCards(req, url);
+    }
+
+    // ── Grupos (pilha recolhível) ──
+    if (url.pathname === '/api/groups' || url.pathname.startsWith('/api/groups/')) {
+      return handleGroups(req, url);
     }
 
     // ── Estáticos (produção: serve o build do Vite em dist/) ──

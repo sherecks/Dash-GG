@@ -71,6 +71,11 @@ let editingId = null;
 let dragId = null;
 let histFilter = 'all';
 
+// Grupos (pilha recolhível) — só no localStorage, não vão para o banco.
+let groups = [];
+let selectMode = false;
+let selectedIds = new Set();
+
 function today() { return new Date().toISOString().split('T')[0]; }
 
 // Persistência dos cards no banco (servidor Bun → Supabase).
@@ -138,6 +143,7 @@ async function deleteCard(id) {
   try {
     const res = await fetch('/api/cards/' + id, { method: 'DELETE' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
+    await loadGroups();   // servidor removeu o card dos grupos / dissolveu grupos órfãos
   } catch (e) { showToast('Erro ao remover no banco'); }
 }
 
@@ -434,9 +440,13 @@ function renderCard(card) {
   const pStage = prevStage[card.stage];
   const nStage = nextSt[card.stage];
   const overdue = isDueOverdue(card.due);
-  return `<div class="kcard" id="kc-${card.id}" draggable="true"
+  const check = selectMode
+    ? `<input type="checkbox" class="kcard-check" ${selectedIds.has(card.id) ? 'checked' : ''} onclick="toggleSelect(${card.id},event)">`
+    : '';
+  return `<div class="kcard${selectMode ? ' selecting' : ''}" id="kc-${card.id}" draggable="${!selectMode}"
       ondragstart="onDragStart(event,${card.id})"
       ondragend="onDragEnd(event)">
+    ${check}
     <div class="kcard-title">${card.title}</div>
     ${card.hyp ? `<div class="kcard-hyp">"${card.hyp.length > 70 ? card.hyp.slice(0,70)+'…' : card.hyp}"</div>` : ''}
     ${card.result ? `<div class="kcard-result">✓ ${card.result.length > 60 ? card.result.slice(0,60)+'…' : card.result}</div>` : ''}
@@ -454,12 +464,133 @@ function renderCard(card) {
   </div>`;
 }
 
+// ── GRUPOS (pilha recolhível, apenas localStorage) ──────────────────────────────
+const stageOrder = ['backlog', 'teste', 'validado', 'descartado'];
+
+async function loadGroups() {
+  try {
+    const res = await fetch('/api/groups?brand=' + currentBrand);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    groups = await res.json();
+  } catch (e) {
+    console.error('Falha ao carregar grupos:', e);
+    groups = [];
+  }
+  renderKanban();
+}
+async function saveGroup(g) {
+  const res = await fetch('/api/groups/' + g.id, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(g),
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+function groupOf(cardId) { return groups.find(g => g.cardIds.includes(cardId)); }
+function groupMembers(g) { return g.cardIds.map(id => cards.find(c => c.id === id)).filter(Boolean); }
+
+// Coluna do grupo = etapa MENOS avançada entre os membros.
+function groupStage(g) {
+  const idxs = groupMembers(g).map(c => stageOrder.indexOf(c.stage));
+  return idxs.length ? stageOrder[Math.min(...idxs)] : 'backlog';
+}
+
+async function toggleGroup(id) {
+  const g = groups.find(x => x.id === id);
+  if (!g) return;
+  g.collapsed = !g.collapsed;
+  renderKanban();
+  try { await saveGroup(g); } catch (e) { showToast('Erro ao salvar grupo'); }
+}
+async function ungroup(id) {
+  const g = groups.find(x => x.id === id);
+  if (!g || !confirm('Desagrupar "' + g.name + '"? Os cards voltam soltos.')) return;
+  groups = groups.filter(x => x.id !== id);
+  renderKanban();
+  try {
+    const res = await fetch('/api/groups/' + id, { method: 'DELETE' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+  } catch (e) { showToast('Erro ao desagrupar'); }
+  showToast('Grupo desfeito');
+}
+
+// Modo de seleção
+function toggleSelectMode() {
+  selectMode = !selectMode;
+  selectedIds.clear();
+  document.getElementById('btn-group-mode').classList.toggle('active', selectMode);
+  renderKanban();
+  renderGroupBar();
+}
+function toggleSelect(id, e) {
+  e.stopPropagation();
+  if (selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
+  renderGroupBar();
+}
+function renderGroupBar() {
+  const bar = document.getElementById('group-bar');
+  if (!selectMode) { bar.classList.remove('open'); bar.innerHTML = ''; return; }
+  bar.classList.add('open');
+  bar.innerHTML = `<span>${selectedIds.size} selecionado(s)</span>
+    <button class="btn-confirm" onclick="createGroupFromSelection()">Agrupar</button>
+    <button class="btn-cancel" onclick="toggleSelectMode()">Cancelar</button>`;
+}
+async function createGroupFromSelection() {
+  if (selectedIds.size < 2) { alert('Selecione ao menos 2 cards para agrupar.'); return; }
+  const name = (prompt('Nome do grupo:') || '').trim();
+  if (!name) return;
+  try {
+    const res = await fetch('/api/groups?brand=' + currentBrand, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, cardIds: [...selectedIds], collapsed: true }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    groups.push(await res.json());
+  } catch (e) {
+    console.error('Falha ao criar grupo:', e);
+    showToast('Erro ao criar grupo');
+    return;
+  }
+  selectMode = false; selectedIds.clear();
+  document.getElementById('btn-group-mode').classList.remove('active');
+  renderKanban(); renderGroupBar();
+  showToast('Grupo criado');
+}
+
+function renderGroup(g) {
+  const members = groupMembers(g);
+  const done = members.filter(m => m.stage === 'validado').length;
+  const head = `<div class="group-head" onclick="toggleGroup(${g.id})">
+      <span class="group-toggle">${g.collapsed ? '▸' : '▾'}</span>
+      <span class="group-name">📦 ${g.name}</span>
+      <span class="group-count">${members.length}</span>
+      <span class="group-prog">${done}/${members.length} validado</span>
+    </div>`;
+  if (g.collapsed) return `<div class="kgroup">${head}</div>`;
+  const rows = members.map(m => {
+    const p = prevStage[m.stage], n = nextSt[m.stage];
+    return `<div class="group-item">
+      <span class="gi-stage st-${m.stage}">${stageLabel[m.stage]}</span>
+      <span class="gi-title">${m.title}</span>
+      <span class="gi-actions">
+        ${p ? `<button class="kcard-btn" onclick="moveCard(${m.id},'${p}')">←</button>` : ''}
+        ${n ? `<button class="kcard-btn" onclick="moveCard(${m.id},'${n}')">→</button>` : ''}
+        <button class="kcard-btn edit-btn" onclick="openEditModal(${m.id})">✎</button>
+      </span>
+    </div>`;
+  }).join('');
+  return `<div class="kgroup open">${head}<div class="group-body">${rows}</div>
+    <button class="group-ungroup" onclick="ungroup(${g.id})">Desagrupar</button></div>`;
+}
+
 function renderKanban() {
-  ['backlog','teste','validado','descartado'].forEach(stage => {
+  stageOrder.forEach(stage => {
     const col = document.getElementById('cards-' + stage);
-    const stageCards = cards.filter(c => c.stage === stage);
-    col.innerHTML = stageCards.map(c => renderCard(c)).join('');
-    document.getElementById('cnt-' + stage).textContent = stageCards.length;
+    const ungrouped = cards.filter(c => c.stage === stage && !groupOf(c.id));
+    const groupsHere = groups.filter(g => groupMembers(g).length && groupStage(g) === stage);
+    col.innerHTML = groupsHere.map(renderGroup).join('') + ungrouped.map(renderCard).join('');
+    document.getElementById('cnt-' + stage).textContent = ungrouped.length + groupsHere.length;
   });
 }
 
@@ -487,7 +618,8 @@ function renderKanban() {
   ['vol','conv','rec'].forEach(g => renderKPIs(g));
   updateHeaderDate();
 
-  // Carrega cards do banco (Supabase, via /api/cards)
+  // Carrega grupos (local, por marca) e depois os cards do banco
+  loadGroups();
   loadCards();
 
   // Carrega histórico

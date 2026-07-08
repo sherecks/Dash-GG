@@ -16,3 +16,13 @@ create table if not exists cards (
 
 -- Se a tabela já existir sem a coluna brand:
 -- alter table cards add column if not exists brand text not null default 'shelf2';
+
+-- Grupos do quadro (pilha recolhível): nome + lista de ids de cards.
+create table if not exists groups (
+  id          bigint generated always as identity primary key,
+  brand       text not null default 'shelf2',    -- shelf2 | maria
+  name        text not null,
+  card_ids    bigint[] not null default '{}',    -- ids da tabela cards
+  collapsed   boolean not null default true,
+  created_at  timestamptz default now()
+);

@@ -143,6 +143,34 @@
   #col-validado  { border-top: 2px solid var(--green); }
   #col-descartado { border-top: 2px solid #ef4444; }
 
+  /* GRUPOS (pilha recolhível) */
+  .kanban-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; min-height: 32px; }
+  .btn-group-mode { border: 1px solid var(--border-strong); }
+  .btn-group-mode.active { background: var(--accent); color: #fff; }
+  .group-bar { display: none; align-items: center; gap: 10px; font-size: 12px; color: var(--text-sec); }
+  .group-bar.open { display: flex; }
+  .group-bar .btn-confirm, .group-bar .btn-cancel { padding: 5px 12px; font-size: 12px; }
+  .kcard-check { position: absolute; top: 8px; right: 8px; width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; z-index: 2; }
+  .kcard.selecting { cursor: pointer; }
+  .kgroup { background: var(--surface2); border: 1px solid var(--border-strong); border-left: 3px solid var(--blue); border-radius: var(--radius-sm); margin-bottom: 8px; overflow: hidden; }
+  .group-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer; font-size: 12px; }
+  .group-head:hover { background: var(--surface3); }
+  .group-toggle { color: var(--text-ter); width: 10px; }
+  .group-name { font-weight: 600; flex: 1; color: var(--text); }
+  .group-count { font-size: 10px; font-weight: 700; background: var(--surface3); border: 1px solid var(--border-strong); border-radius: 10px; padding: 1px 7px; color: var(--text-sec); }
+  .group-prog { font-size: 10px; color: var(--green); white-space: nowrap; }
+  .group-body { border-top: 1px solid var(--border); padding: 6px; display: flex; flex-direction: column; gap: 5px; }
+  .group-item { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; }
+  .gi-stage { font-size: 9px; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: var(--surface3); color: var(--text-sec); white-space: nowrap; }
+  .gi-stage.st-backlog { color: var(--blue); }
+  .gi-stage.st-teste { color: var(--amber); }
+  .gi-stage.st-validado { color: var(--green); }
+  .gi-stage.st-descartado { color: #ef4444; }
+  .gi-title { flex: 1; font-size: 12px; }
+  .gi-actions { display: flex; gap: 4px; }
+  .group-ungroup { width: 100%; background: none; border: none; border-top: 1px solid var(--border); color: #ef4444; font-size: 11px; padding: 7px; cursor: pointer; font-family: var(--font); }
+  .group-ungroup:hover { background: rgba(239,68,68,.08); }
+
   /* MODAL */
   .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200; align-items: center; justify-content: center; }
   .modal-backdrop.open { display: flex; }
@@ -265,6 +293,10 @@
   <!-- KANBAN -->
   <div class="section-label">Quadro de testes — kanban ágil</div>
   <div class="kanban-section">
+    <div class="kanban-toolbar">
+      <button class="brand-btn btn-group-mode" id="btn-group-mode" onclick="toggleSelectMode()">⧉ Agrupar cards</button>
+      <div class="group-bar" id="group-bar"></div>
+    </div>
     <div class="kanban-board">
       <div class="kanban-col" id="col-backlog" ondragover="onDragOver(event,'backlog')" ondragleave="onDragLeave(event,'backlog')" ondrop="onDrop(event,'backlog')">
         <div class="kanban-col-head">
