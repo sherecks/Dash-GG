@@ -76,9 +76,14 @@ export const BRAND_PROPERTY = 'marca_associada';
 export const BRANDS = {
   shelf2: { marca: 'Shelf',           label: 'Shelf' },
   // `props` sobrescreve a dateProperty de um KPI só para esta marca.
-  // Contatos da Maria usam a data de resposta do lead (Consultia), não o WhatsApp.
+  // A Maria usa as propriedades da Consultia (resposta e disparo), não as [IA]/WhatsApp.
   maria:  { marca: 'Maria Lavadeira', label: 'Maria Lavadeira',
-            props: { contatos: 'consultia_data__resposta_do_lead' } },
+            props: {
+              contatos: 'consultia_data__resposta_do_lead',
+              qualif:   'consultia_data__disparo_da_ia',
+              followup: 'consultia_data__disparo_da_ia',
+              opps:     'consultia_data__disparo_da_ia',
+            } },
 };
 export const DEFAULT_BRAND = 'shelf2';
 
@@ -86,19 +91,22 @@ export const DEFAULT_BRAND = 'shelf2';
 const FI = PIPELINES['Funil Inovação [300F]'];
 const stage = (nome) => FI.stages[nome];
 
+// Data do disparo do WhatsApp pela IA — é por essa data que a operação mede o
+// período (o relatório "[IA] Disparo x Respostas" do Hubspot usa ela, não createdate).
+const DISPARO = 'ia_data_do_disparo_whatsapp';
+
 // ── Mapeamento: KPI do dashboard → contagem no Hubspot ──────────────────────────
-// Modelo "etapa atual" (igual ao gráfico do Hubspot): conta deals CRIADOS no
-// período (createdate) cuja ETAPA ATUAL (dealstage) é a indicada por `stageId`.
-// Sem `stageId`, conta só pela `dateProperty` no período. `pipelineId` restringe
-// ao funil. Toda busca é filtrada pela marca (ver index.js).
+// KPIs de etapa: conta deals cuja `dateProperty` cai no período E cuja ETAPA ATUAL
+// (dealstage) é `stageId` — igual ao gráfico do Hubspot. `pipelineId` restringe ao
+// funil. Toda busca é filtrada pela marca (ver index.js).
 export const KPI_SOURCES = [
   // VOLUME (Funil Inovação)
-  { kpiId: 'leads',    dateProperty: 'createdate',                     pipelineId: FI.id, label: 'Leads Trabalhados — Lead Novo (criados no Funil Inovação)' },
+  { kpiId: 'leads',    dateProperty: 'createdate',                     pipelineId: FI.id, label: 'Leads Trabalhados — criados no Funil Inovação' },
   { kpiId: 'contatos', dateProperty: 'data_da_1_resposta_de_whatsapp', pipelineId: FI.id, label: 'Contatos Iniciados — 1ª resposta WhatsApp' },
-  { kpiId: 'qualif',   dateProperty: 'createdate', stageId: stage('Convidado Webinar'),    label: 'Qualif — etapa atual: Convidado Webinar' },
-  { kpiId: 'followup', dateProperty: 'createdate', stageId: stage('Conferencia Agendada'), label: 'Followup — etapa atual: Conferencia Agendada' },
+  { kpiId: 'qualif',   dateProperty: DISPARO, stageId: stage('Convidado Webinar'),    label: 'Qualif — disparo no período, etapa atual: Convidado Webinar' },
+  { kpiId: 'followup', dateProperty: DISPARO, stageId: stage('Conferencia Agendada'), label: 'Followup — disparo no período, etapa atual: Conferencia Agendada' },
 
   // RECEITA
-  { kpiId: 'opps',     dateProperty: 'createdate', stageId: stage('Conferencia Realizada'), label: 'Oportunidades geradas — etapa atual: Conferencia Realizada' },
+  { kpiId: 'opps',     dateProperty: DISPARO, stageId: stage('Conferencia Realizada'), label: 'Oportunidades geradas — disparo no período, etapa atual: Conferencia Realizada' },
   // ⏳ receita — aguardando definição da propriedade de valor
 ];
