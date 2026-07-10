@@ -390,7 +390,7 @@ function computeRates() {
     kpiState[id].val = value;
   };
   setVal('txresp', pct(v('contatos'), v('leads')));   // contatos ÷ leads
-  setVal('txqual', pct(v('followup'), v('leads')));   // apresentação agendada ÷ leads
+  setVal('txqual', pct(v('qualif'), v('leads')));     // convidado webinar ÷ leads
 }
 
 // ── HUBSPOT ────────────────────────────────────────────────────────────────────
