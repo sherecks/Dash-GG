@@ -80,33 +80,26 @@ export const BRANDS = {
   maria:  { marca: 'Maria Lavadeira', label: 'Maria Lavadeira',
             props: {
               contatos: 'consultia_data__resposta_do_lead',
-              qualif:   'consultia_data__disparo_da_ia',
-              followup: 'consultia_data__disparo_da_ia',
-              opps:     'consultia_data__disparo_da_ia',
             } },
 };
 export const DEFAULT_BRAND = 'shelf2';
 
-// Operação migrada para o Funil Inovação [300F] (deals saíram do Funil de Vendas).
+// Operação no Funil Inovação [300F] (deals migraram do Funil de Vendas).
 const FI = PIPELINES['Funil Inovação [300F]'];
-const stage = (nome) => FI.stages[nome];
-
-// Data do disparo do WhatsApp pela IA — é por essa data que a operação mede o
-// período (o relatório "[IA] Disparo x Respostas" do Hubspot usa ela, não createdate).
-const DISPARO = 'ia_data_do_disparo_whatsapp';
 
 // ── Mapeamento: KPI do dashboard → contagem no Hubspot ──────────────────────────
-// KPIs de etapa: conta deals cuja `dateProperty` cai no período E cuja ETAPA ATUAL
-// (dealstage) é `stageId` — igual ao gráfico do Hubspot. `pipelineId` restringe ao
-// funil. Toda busca é filtrada pela marca (ver index.js).
+// Cada KPI conta deals cuja `dateProperty` cai no período (+ filtro de marca).
+// Os KPIs de etapa usam a DATA da etapa (movimentação somada, sem filtrar etapa
+// atual): quem alcançou a etapa no período, independente de onde está agora.
+// `pipelineId` (opcional) restringe ao funil.
 export const KPI_SOURCES = [
   // VOLUME (Funil Inovação)
   { kpiId: 'leads',    dateProperty: 'createdate',                     pipelineId: FI.id, label: 'Leads Trabalhados — criados no Funil Inovação' },
   { kpiId: 'contatos', dateProperty: 'data_da_1_resposta_de_whatsapp', pipelineId: FI.id, label: 'Contatos Iniciados — 1ª resposta WhatsApp' },
-  { kpiId: 'qualif',   dateProperty: DISPARO, stageId: stage('Convidado Webinar'),    label: 'Qualif — disparo no período, etapa atual: Convidado Webinar' },
-  { kpiId: 'followup', dateProperty: DISPARO, stageId: stage('Conferencia Agendada'), label: 'Followup — disparo no período, etapa atual: Conferencia Agendada' },
+  { kpiId: 'qualif',   dateProperty: 'data___inscrito_webinar', label: 'Convidado Webinar — movimentação (DATA - INSCRITO WEBINAR no período)' },
+  { kpiId: 'followup', dateProperty: 'data___conferencia_agendada', label: 'Conferencia Agendada — movimentação (DATA - CONFERENCIA AGENDADA no período)' },
 
   // RECEITA
-  { kpiId: 'opps',     dateProperty: DISPARO, stageId: stage('Conferencia Realizada'), label: 'Oportunidades geradas — disparo no período, etapa atual: Conferencia Realizada' },
+  { kpiId: 'opps',     dateProperty: 'conferencia_realizada', label: 'Conferencia Realizada — movimentação (DATA - CONFERENCIA REALIZADA no período)' },
   // ⏳ receita — aguardando definição da propriedade de valor
 ];
