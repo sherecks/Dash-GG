@@ -614,10 +614,9 @@ function renderKanban() {
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 (function init() {
-  // Aplica a marca atual (pill fixo, subtítulo com o nome, título e seletor)
+  // Aplica a marca atual (pill fixo, título da aba e seletor)
   const brand = BRANDS[currentBrand];
   document.getElementById('brand-pill').textContent = PILL;
-  document.getElementById('brand-sub').textContent = brand.label;
   document.title = 'Dashboard de Gestão à Vista — ' + brand.label;
   renderBrandSwitcher();
 
