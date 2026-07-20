@@ -20,11 +20,26 @@ let kpiState = {};
 ['vol','conv','rec'].forEach(g => kpiDefs[g].forEach(k => { kpiState[k.id] = { val: 0, prev: 0 }; }));
 
 // ── MARCAS ──────────────────────────────────────────────────────────────────────
+// pill = selo fixo da empresa; label = nome da marca (botão do seletor + subtítulo).
+// A chave (shelf2, maria, ...) precisa bater com a do servidor (kpiMap.js).
+const PILL = '300';
 const BRANDS = {
-  shelf2: { pill: '300',},
-  maria:  { pill: '300', },
+  shelf2:    { label: 'Shelf' },
+  maria:     { label: 'Maria Lavadeira' },
+  locarx:    { label: 'Locar-x' },
+  brumed:    { label: 'Brumed' },
+  doctorfit: { label: 'Doctor Fit' },
 };
 const currentBrand = BRANDS[new URLSearchParams(location.search).get('brand')] ? new URLSearchParams(location.search).get('brand') : 'shelf2';
+
+function renderBrandSwitcher() {
+  const el = document.getElementById('brand-switcher');
+  if (!el) return;
+  el.innerHTML = '<span class="brand-switcher-label">Marca</span>' +
+    Object.entries(BRANDS).map(([key, b]) =>
+      `<button class="brand-btn${key === currentBrand ? ' active' : ''}" onclick="switchBrand('${key}')">${b.label}</button>`
+    ).join('');
+}
 
 // Namespace de armazenamento por marca (cache de KPIs, histórico, intervalo).
 const STORE = currentBrand + '_';
@@ -599,13 +614,12 @@ function renderKanban() {
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 (function init() {
-  // Aplica a marca atual (pill, subtítulo, título e botão ativo no seletor)
+  // Aplica a marca atual (pill fixo, subtítulo com o nome, título e seletor)
   const brand = BRANDS[currentBrand];
-  document.getElementById('brand-pill').textContent = brand.pill;
-  document.getElementById('brand-sub').textContent = brand.sub;
-  document.title = 'Dashboard de Gestão à Vista — ' + brand.pill;
-  document.getElementById('bs-shelf2').classList.toggle('active', currentBrand === 'shelf2');
-  document.getElementById('bs-maria').classList.toggle('active', currentBrand === 'maria');
+  document.getElementById('brand-pill').textContent = PILL;
+  document.getElementById('brand-sub').textContent = brand.label;
+  document.title = 'Dashboard de Gestão à Vista — ' + brand.label;
+  renderBrandSwitcher();
 
   // Intervalo salvo (default: hoje → hoje)
   const savedRange = localStorage.getItem(STORE + 'range');

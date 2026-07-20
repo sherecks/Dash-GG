@@ -74,13 +74,14 @@ export const PIPELINES = {
 // compartilham o mesmo mapeamento de etapas (KPI_SOURCES) — só muda o filtro.
 export const BRAND_PROPERTY = 'marca_associada';
 export const BRANDS = {
-  shelf2: { marca: 'Shelf',           label: 'Shelf' },
+  shelf2:    { marca: 'Shelf',           label: 'Shelf' },
   // `props` sobrescreve a dateProperty de um KPI só para esta marca.
-  // A Maria usa as propriedades da Consultia (resposta e disparo), não as [IA]/WhatsApp.
-  maria:  { marca: 'Maria Lavadeira', label: 'Maria Lavadeira',
-            props: {
-              contatos: 'consultia_data__resposta_do_lead',
-            } },
+  // A Maria usa a resposta da Consultia; as demais usam o padrão (WhatsApp).
+  maria:     { marca: 'Maria Lavadeira', label: 'Maria Lavadeira',
+               props: { contatos: 'consultia_data__resposta_do_lead' } },
+  locarx:    { marca: 'Locar-x',         label: 'Locar-x' },
+  brumed:    { marca: 'Brumed',          label: 'Brumed' },
+  doctorfit: { marca: 'Doctor Fit',      label: 'Doctor Fit' },
 };
 export const DEFAULT_BRAND = 'shelf2';
 
