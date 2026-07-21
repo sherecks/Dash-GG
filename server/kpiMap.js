@@ -82,6 +82,8 @@ export const BRANDS = {
   locarx:    { marca: 'Locar-x',         label: 'Locar-x' },
   brumed:    { marca: 'Brumed',          label: 'Brumed' },
   doctorfit: { marca: 'Doctor Fit',      label: 'Doctor Fit' },
+  ecoville:   { marca: 'Ecoville',    label: 'Ecoville' },
+  fasttennis: { marca: 'Fast Tennis', label: 'Fast Tennis' },
 };
 export const DEFAULT_BRAND = 'shelf2';
 

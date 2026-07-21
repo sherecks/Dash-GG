@@ -29,6 +29,8 @@ const BRANDS = {
   locarx:    { label: 'Locar-x' },
   brumed:    { label: 'Brumed' },
   doctorfit: { label: 'Doctor Fit' },
+  ecoville:   { label: 'Ecoville' },
+  fasttennis: { label: 'Fast Tennis' },
 };
 const currentBrand = BRANDS[new URLSearchParams(location.search).get('brand')] ? new URLSearchParams(location.search).get('brand') : 'shelf2';
 
