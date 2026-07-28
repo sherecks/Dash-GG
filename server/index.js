@@ -1,6 +1,6 @@
 import { join } from 'path';
-import { searchCountByDate, rangeBounds } from './hubspot.js';
-import { KPI_SOURCES, BRANDS, BRAND_PROPERTY, DEFAULT_BRAND } from './kpiMap.js';
+import { searchDealsCount, rangeBounds } from './hubspot.js';
+import { KPI_SOURCES, DIRETORIAS, DEFAULT_DIRETORIA, BRAND_PROPERTY, FI_ID, contatosProp } from './kpiMap.js';
 import { db, toCard, toGroup, pgIntArray } from './db.js';
 
 const PORT = process.env.PORT || 3000;
@@ -15,33 +15,37 @@ function todaySP() {
   return sp.toISOString().slice(0, 10);
 }
 
-const brandKey = (k) => (BRANDS[k] ? k : DEFAULT_BRAND);
+// Chave de diretoria válida (default se vier inválida). É o valor guardado na
+// coluna `brand` de cards/groups e o escopo dos KPIs.
+const dirKey = (k) => (DIRETORIAS[k] ? k : DEFAULT_DIRETORIA);
 
-// Busca os KPIs em SEQUÊNCIA com intervalo, respeitando o rate limit do Hubspot
-// (search: ~limite por segundo; 150 req / 10s no geral). Devolve { id: total }.
-async function getKpis(brand, startDate, endDate) {
+// Soma os KPIs de uma diretoria (todas as marcas dela juntas).
+async function getKpis(dir, startDate, endDate) {
   const { start, end } = rangeBounds(startDate, endDate);
-  const cfg = BRANDS[brand];
-  const filter = { property: BRAND_PROPERTY, value: cfg.marca };
+  const brands = DIRETORIAS[dir].brands;
+  const between = (prop) => ({ propertyName: prop, operator: 'BETWEEN', value: start, highValue: end });
+  const marcaIn = (list) => ({ propertyName: BRAND_PROPERTY, operator: 'IN', values: list });
   const kpis = {};
-  console.log(`\n[KPIs] ${startDate} -> ${endDate}  | marca: ${filter.value}`);
+  console.log(`\n[KPIs] ${startDate} -> ${endDate}  | diretoria: ${DIRETORIAS[dir].label} (${brands.length} marcas)`);
+
+  // KPIs simples: 1 grupo (dateProperty + marca IN + pipeline opcional)
   for (const src of KPI_SOURCES) {
-    // Permite sobrescrever a propriedade de data por marca (ex.: contatos da Maria).
-    const dateProperty = (cfg.props && cfg.props[src.kpiId]) || src.dateProperty;
-    const count = await searchCountByDate({
-      dateProperty,
-      pipelineId: src.pipelineId,
-      stageId: src.stageId,
-      brand: filter,
-      start,
-      end,
-    });
-    kpis[src.kpiId] = count;
-    // id = valor + descrição, para conferir contra o Hubspot
-    console.log(`  ${src.kpiId.padEnd(9)} = ${String(count).padStart(5)}   ${src.label}`);
-    await sleep(250); // ~4 req/s
+    const filters = [between(src.dateProperty), marcaIn(brands)];
+    if (src.pipelineId) filters.push({ propertyName: 'pipeline', operator: 'EQ', value: String(src.pipelineId) });
+    kpis[src.kpiId] = await searchDealsCount([filters]);
+    console.log(`  ${src.kpiId.padEnd(9)} = ${String(kpis[src.kpiId]).padStart(5)}`);
+    await sleep(250);
   }
-  return { brand, start: startDate, end: endDate, kpis };
+
+  // contatos: agrupa as marcas por propriedade de 1ª resposta e soma (OR entre grupos)
+  const porProp = {};
+  for (const m of brands) (porProp[contatosProp(m)] ||= []).push(m);
+  const grupos = Object.entries(porProp).map(([prop, list]) => [between(prop), marcaIn(list)]);
+  kpis.contatos = await searchDealsCount(grupos);
+  console.log(`  contatos  = ${String(kpis.contatos).padStart(5)}  (${grupos.length} grupo(s) de propriedade)`);
+  await sleep(250);
+
+  return { diretoria: dir, start: startDate, end: endDate, kpis };
 }
 
 // ── CARDS (quadro de testes) ───────────────────────────────────────────────────
@@ -49,7 +53,7 @@ async function handleCards(req, url) {
   if (!db) return Response.json({ error: 'DATABASE_URL não configurada no .env' }, { status: 503 });
   const method = req.method;
   const idMatch = url.pathname.match(/^\/api\/cards\/(\d+)$/);
-  const brand = brandKey(url.searchParams.get('brand'));
+  const brand = dirKey(url.searchParams.get('brand'));
   try {
     if (method === 'GET' && url.pathname === '/api/cards') {
       const rows = await db`select * from cards where brand=${brand} order by position, id`;
@@ -58,9 +62,10 @@ async function handleCards(req, url) {
     if (method === 'POST' && url.pathname === '/api/cards') {
       const b = await req.json();
       const [row] = await db`
-        insert into cards (brand, title, stage, owner, start_date, due_date, hyp, result)
+        insert into cards (brand, title, stage, owner, start_date, due_date, hyp, result, tags)
         values (${brand}, ${b.title}, ${b.stage || 'backlog'}, ${b.owner || ''},
-                ${b.date || null}, ${b.due || null}, ${b.hyp || ''}, ${b.result || ''})
+                ${b.date || null}, ${b.due || null}, ${b.hyp || ''}, ${b.result || ''},
+                ${JSON.stringify(b.tags || [])}::jsonb)
         returning *`;
       return Response.json(toCard(row));
     }
@@ -70,7 +75,8 @@ async function handleCards(req, url) {
         update cards set
           title=${b.title}, stage=${b.stage}, owner=${b.owner || ''},
           start_date=${b.date || null}, due_date=${b.due || null},
-          hyp=${b.hyp || ''}, result=${b.result || ''}, updated_at=now()
+          hyp=${b.hyp || ''}, result=${b.result || ''},
+          tags=${JSON.stringify(b.tags || [])}::jsonb, updated_at=now()
         where id=${Number(idMatch[1])} returning *`;
       return row ? Response.json(toCard(row)) : new Response('Not found', { status: 404 });
     }
@@ -94,7 +100,7 @@ async function handleGroups(req, url) {
   if (!db) return Response.json({ error: 'DATABASE_URL não configurada no .env' }, { status: 503 });
   const method = req.method;
   const idMatch = url.pathname.match(/^\/api\/groups\/(\d+)$/);
-  const brand = brandKey(url.searchParams.get('brand'));
+  const brand = dirKey(url.searchParams.get('brand'));
   try {
     if (method === 'GET' && url.pathname === '/api/groups') {
       const rows = await db`select * from groups where brand=${brand} order by id`;
@@ -142,7 +148,7 @@ Bun.serve({
 
     // ── API ──
     if (url.pathname === '/api/kpis') {
-      const brand = brandKey(url.searchParams.get('brand'));
+      const brand = dirKey(url.searchParams.get('brand'));
       const start = url.searchParams.get('start');
       const end = url.searchParams.get('end');
       const s = isDate(start) ? start : todaySP();

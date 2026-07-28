@@ -23,23 +23,23 @@ let kpiState = {};
 // pill = selo fixo da empresa; label = nome da marca (botão do seletor + subtítulo).
 // A chave (shelf2, maria, ...) precisa bater com a do servidor (kpiMap.js).
 const PILL = '300';
-const BRANDS = {
-  shelf2:    { label: 'Shelf' },
-  maria:     { label: 'Maria Lavadeira' },
-  locarx:    { label: 'Locar-x' },
-  brumed:    { label: 'Brumed' },
-  doctorfit: { label: 'Doctor Fit' },
-  ecoville:   { label: 'Ecoville' },
-  fasttennis: { label: 'Fast Tennis' },
+// Diretorias e as marcas de cada uma (as marcas viram TAGS nos cards do kanban).
+// A chave (fenix, camaleoes, furia) precisa bater com a do servidor (kpiMap.js).
+const DIRETORIAS = {
+  fenix:     { label: 'Fenix',     brands: ['4Beach', 'Ecoville', 'Fast Tennis', 'Suav', 'Maria Lavadeira'] },
+  camaleoes: { label: 'Camaleões', brands: ['Mestre de Obra', 'Mestre das Tintas', 'Shelf', 'Airlocker', 'La Bolaria', 'Agilihome'] },
+  furia:     { label: 'Furia',     brands: ['Locar-x', 'Brumed', 'Saude Livre Vacinas', 'Doctor Fit'] },
 };
-const currentBrand = BRANDS[new URLSearchParams(location.search).get('brand')] ? new URLSearchParams(location.search).get('brand') : 'shelf2';
+// currentBrand guarda a CHAVE da diretoria (mantém o nome por compatibilidade).
+const currentBrand = DIRETORIAS[new URLSearchParams(location.search).get('brand')] ? new URLSearchParams(location.search).get('brand') : 'fenix';
+const brandsDaDiretoria = DIRETORIAS[currentBrand].brands;
 
 function renderBrandSwitcher() {
   const el = document.getElementById('brand-switcher');
   if (!el) return;
-  el.innerHTML = '<span class="brand-switcher-label">Marca</span>' +
-    Object.entries(BRANDS).map(([key, b]) =>
-      `<button class="brand-btn${key === currentBrand ? ' active' : ''}" onclick="switchBrand('${key}')">${b.label}</button>`
+  el.innerHTML = '<span class="brand-switcher-label">Diretoria</span>' +
+    Object.entries(DIRETORIAS).map(([key, d]) =>
+      `<button class="brand-btn${key === currentBrand ? ' active' : ''}" onclick="switchBrand('${key}')">${d.label}</button>`
     ).join('');
 }
 
@@ -199,6 +199,19 @@ async function onDrop(e, stage) {
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────────────
+// Tags = marcas da diretoria atual (checkboxes no modal).
+function renderTagOptions(selected) {
+  const wrap = document.getElementById('m-tags');
+  if (!wrap) return;
+  const sel = new Set(selected || []);
+  wrap.innerHTML = brandsDaDiretoria.map(b =>
+    `<label class="tag-check${sel.has(b) ? ' on' : ''}"><input type="checkbox" value="${b}"${sel.has(b) ? ' checked' : ''} onchange="this.parentElement.classList.toggle('on',this.checked)"> ${b}</label>`
+  ).join('');
+}
+function getSelectedTags() {
+  return [...document.querySelectorAll('#m-tags input:checked')].map(c => c.value);
+}
+
 function openModal(stage) {
   editingId = null;
   document.getElementById('modal-title').textContent = 'Novo card de teste';
@@ -209,6 +222,7 @@ function openModal(stage) {
   document.getElementById('m-due').value = '';
   document.getElementById('m-hyp').value = '';
   document.getElementById('m-result').value = '';
+  renderTagOptions([]);
   document.getElementById('modal').classList.add('open');
 }
 function openEditModal(id) {
@@ -223,6 +237,7 @@ function openEditModal(id) {
   document.getElementById('m-due').value = card.due || '';
   document.getElementById('m-hyp').value = card.hyp || '';
   document.getElementById('m-result').value = card.result || '';
+  renderTagOptions(card.tags || []);
   document.getElementById('modal').classList.add('open');
 }
 function closeModal() { document.getElementById('modal').classList.remove('open'); editingId = null; }
@@ -243,6 +258,7 @@ async function saveCard() {
     due: document.getElementById('m-due').value,
     hyp: document.getElementById('m-hyp').value.trim(),
     result: document.getElementById('m-result').value.trim(),
+    tags: getSelectedTags(),
   };
   for (const [campo, rotulo] of [['date', 'início'], ['due', 'entrega']]) {
     const v = data[campo];
@@ -468,6 +484,7 @@ function renderCard(card) {
       ondragend="onDragEnd(event)">
     ${check}
     <div class="kcard-title">${card.title}</div>
+    ${card.tags && card.tags.length ? `<div class="kcard-tags">${card.tags.map(t => `<span class="kcard-tag">${t}</span>`).join('')}</div>` : ''}
     ${card.hyp ? `<div class="kcard-hyp">"${card.hyp.length > 70 ? card.hyp.slice(0,70)+'…' : card.hyp}"</div>` : ''}
     ${card.result ? `<div class="kcard-result">✓ ${card.result.length > 60 ? card.result.slice(0,60)+'…' : card.result}</div>` : ''}
     <div class="kcard-meta">
@@ -616,10 +633,10 @@ function renderKanban() {
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 (function init() {
-  // Aplica a marca atual (pill fixo, título da aba e seletor)
-  const brand = BRANDS[currentBrand];
+  // Aplica a diretoria atual (pill fixo, título da aba e seletor)
+  const dir = DIRETORIAS[currentBrand];
   document.getElementById('brand-pill').textContent = PILL;
-  document.title = 'Dashboard de Gestão à Vista — ' + brand.label;
+  document.title = 'Dashboard de Gestão à Vista — ' + dir.label;
   renderBrandSwitcher();
 
   // Intervalo salvo (default: hoje → hoje)

@@ -69,40 +69,40 @@ export const PIPELINES = {
   },
 };
 
-// Marcas da operação. TODA busca é restrita a uma marca (o funil é compartilhado).
-// Shelf e Maria Lavadeira estão no MESMO funil (Funil de Vendas [300F]), então
-// compartilham o mesmo mapeamento de etapas (KPI_SOURCES) — só muda o filtro.
 export const BRAND_PROPERTY = 'marca_associada';
-export const BRANDS = {
-  shelf2:    { marca: 'Shelf',           label: 'Shelf' },
-  // `props` sobrescreve a dateProperty de um KPI só para esta marca.
-  // A Maria usa a resposta da Consultia; as demais usam o padrão (WhatsApp).
-  maria:     { marca: 'Maria Lavadeira', label: 'Maria Lavadeira',
-               props: { contatos: 'consultia_data__resposta_do_lead' } },
-  locarx:    { marca: 'Locar-x',         label: 'Locar-x' },
-  brumed:    { marca: 'Brumed',          label: 'Brumed' },
-  doctorfit: { marca: 'Doctor Fit',      label: 'Doctor Fit' },
-  ecoville:   { marca: 'Ecoville',    label: 'Ecoville' },
-  fasttennis: { marca: 'Fast Tennis', label: 'Fast Tennis' },
+
+// ── Contatos: propriedade de "1ª resposta" por marca (varia por ferramenta) ─────
+const CONTATOS_DEFAULT = 'data_da_1_resposta_de_whatsapp';        // WhatsApp (padrão)
+const CONTATOS_POR_MARCA = {
+  'Maria Lavadeira': 'consultia_data__resposta_do_lead',         // Consultia
+  'Airlocker':       'umbler__data_que_respondeu_disparo',       // Umbler
+  'La Bolaria':      'umbler__data_que_respondeu_disparo',
+  'Mestre de Obra':  'umbler__data_que_respondeu_disparo',
+  'Agilihome':       'umbler__data_que_respondeu_disparo',
 };
-export const DEFAULT_BRAND = 'shelf2';
+export const contatosProp = (marca) => CONTATOS_POR_MARCA[marca] || CONTATOS_DEFAULT;
 
-// Operação no Funil Inovação [300F] (deals migraram do Funil de Vendas).
+// ── Diretorias: cada uma agrega as marcas (marca_associada) abaixo ──────────────
+// A chave (fenix, camaleoes, furia) precisa bater com a do front (app.js) e é o
+// valor guardado na coluna `brand` de cards/groups.
+export const DIRETORIAS = {
+  fenix:     { label: 'Fenix',     brands: ['4Beach', 'Ecoville', 'Fast Tennis', 'Suav', 'Maria Lavadeira'] },
+  camaleoes: { label: 'Camaleões', brands: ['Mestre de Obra', 'Mestre das Tintas', 'Shelf', 'Airlocker', 'La Bolaria', 'Agilihome'] },
+  furia:     { label: 'Furia',     brands: ['Locar-x', 'Brumed', 'Saude Livre Vacinas', 'Doctor Fit'] },
+};
+export const DEFAULT_DIRETORIA = 'fenix';
+
+// Operação no Funil Inovação [300F].
 const FI = PIPELINES['Funil Inovação [300F]'];
+export const FI_ID = FI.id;
 
-// ── Mapeamento: KPI do dashboard → contagem no Hubspot ──────────────────────────
-// Cada KPI conta deals cuja `dateProperty` cai no período (+ filtro de marca).
-// Os KPIs de etapa usam a DATA da etapa (movimentação somada, sem filtrar etapa
-// atual): quem alcançou a etapa no período, independente de onde está agora.
-// `pipelineId` (opcional) restringe ao funil.
+// ── KPIs simples (uma dateProperty p/ todas as marcas) ──────────────────────────
+// Contam deals cuja `dateProperty` cai no período (+ filtro de diretoria = marca IN).
+// Os de etapa usam a DATA da etapa (movimentação somada). `contatos` é tratado à
+// parte no index.js (a propriedade varia por marca — ver CONTATOS_POR_MARCA).
 export const KPI_SOURCES = [
-  // VOLUME (Funil Inovação)
-  { kpiId: 'leads',    dateProperty: 'createdate',                     pipelineId: FI.id, label: 'Leads Trabalhados — criados no Funil Inovação' },
-  { kpiId: 'contatos', dateProperty: 'data_da_1_resposta_de_whatsapp', pipelineId: FI.id, label: 'Contatos Iniciados — 1ª resposta WhatsApp' },
-  { kpiId: 'qualif',   dateProperty: 'data___inscrito_webinar', label: 'Convidado Webinar — movimentação (DATA - INSCRITO WEBINAR no período)' },
-  { kpiId: 'followup', dateProperty: 'data___conferencia_agendada', label: 'Conferencia Agendada — movimentação (DATA - CONFERENCIA AGENDADA no período)' },
-
-  // RECEITA
-  { kpiId: 'opps',     dateProperty: 'conferencia_realizada', label: 'Conferencia Realizada — movimentação (DATA - CONFERENCIA REALIZADA no período)' },
-  // ⏳ receita — aguardando definição da propriedade de valor
+  { kpiId: 'leads',    dateProperty: 'createdate',                pipelineId: FI.id },
+  { kpiId: 'qualif',   dateProperty: 'data___inscrito_webinar' },
+  { kpiId: 'followup', dateProperty: 'data___conferencia_agendada' },
+  { kpiId: 'opps',     dateProperty: 'conferencia_realizada' },
 ];

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title id="page-title">Dashboard de Gestão à Vista</title>
+<title id="page-title">Dashboard 300</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -57,7 +57,8 @@
   .btn-save:hover { opacity: .85; }
 
   /* LAYOUT */
-  .main { max-width: 1320px; margin: 0 auto; padding: 28px 32px 60px; }
+  .main { max-width: 1320px; margin: 0 auto; padding: 28px 32px 60px; display: flex; flex-direction: column; }
+  .order-kanban { order: -1; }  /* kanban vai para o topo; KPIs ficam abaixo */
   .section-label { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text-ter); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
   .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
@@ -171,6 +172,14 @@
   .group-ungroup { width: 100%; background: none; border: none; border-top: 1px solid var(--border); color: #ef4444; font-size: 11px; padding: 7px; cursor: pointer; font-family: var(--font); }
   .group-ungroup:hover { background: rgba(239,68,68,.08); }
 
+  /* TAGS (marcas) */
+  .tag-options { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag-check { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 4px 9px; border: 1px solid var(--border-strong); border-radius: 20px; cursor: pointer; color: var(--text-sec); background: var(--surface2); user-select: none; }
+  .tag-check.on { border-color: var(--accent); color: var(--text); background: rgba(227,0,0,0.08); }
+  .tag-check input { accent-color: var(--accent); margin: 0; }
+  .kcard-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 6px; }
+  .kcard-tag { font-size: 9px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: rgba(59,130,246,0.12); color: #6fa8f5; }
+
   /* MODAL */
   .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200; align-items: center; justify-content: center; }
   .modal-backdrop.open { display: flex; }
@@ -283,8 +292,8 @@
   </div>
 
   <!-- KANBAN -->
-  <div class="section-label">Quadro de testes — kanban ágil</div>
-  <div class="kanban-section">
+  <div class="section-label order-kanban">Quadro de testes — kanban ágil</div>
+  <div class="kanban-section order-kanban">
     <div class="kanban-toolbar">
       <button class="brand-btn btn-group-mode" id="btn-group-mode" onclick="toggleSelectMode()">⧉ Agrupar cards</button>
       <div class="group-bar" id="group-bar"></div>
@@ -343,6 +352,10 @@
         <option value="validado">Validado</option>
         <option value="descartado">Descartado</option>
       </select>
+    </div>
+    <div class="modal-field">
+      <label>Marcas (tags)</label>
+      <div id="m-tags" class="tag-options"></div>
     </div>
     <div class="modal-row2">
       <div class="modal-field">
