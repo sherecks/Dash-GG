@@ -75,10 +75,8 @@ export const BRAND_PROPERTY = 'marca_associada';
 const CONTATOS_DEFAULT = 'data_da_1_resposta_de_whatsapp';        // WhatsApp (padrão)
 const CONTATOS_POR_MARCA = {
   'Maria Lavadeira': 'consultia_data__resposta_do_lead',         // Consultia
-  'Airlocker':       'umbler__data_que_respondeu_disparo',       // Umbler
-  'La Bolaria':      'umbler__data_que_respondeu_disparo',
-  'Mestre de Obra':  'umbler__data_que_respondeu_disparo',
-  'Agilihome':       'umbler__data_que_respondeu_disparo',
+  // As demais marcas usam o padrão (data_da_1_resposta_de_whatsapp). Algumas estão
+  // zeradas por um erro de preenchimento no Hubspot — é o esperado até corrigirem lá.
 };
 export const contatosProp = (marca) => CONTATOS_POR_MARCA[marca] || CONTATOS_DEFAULT;
 
