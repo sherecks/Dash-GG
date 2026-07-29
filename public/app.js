@@ -16,8 +16,8 @@ const kpiDefs = {
   ],
 };
 
-let kpiState = {};
-['vol','conv','rec'].forEach(g => kpiDefs[g].forEach(k => { kpiState[k.id] = { val: 0, prev: 0 }; }));
+// KPIs por marca da diretoria: { [marca]: { [kpiId]: { val, prev } } }
+let kpiByBrand = {};
 
 // ── MARCAS ──────────────────────────────────────────────────────────────────────
 // pill = selo fixo da empresa; label = nome da marca (botão do seletor + subtítulo).
@@ -58,7 +58,7 @@ let currentRange = { start: today(), end: today() };
 
 // Cache local dos últimos KPIs buscados (fallback enquanto o Hubspot carrega).
 function saveKPIToStorage() {
-  localStorage.setItem(STORE + 'kpi', JSON.stringify({ range: currentRange, state: kpiState }));
+  localStorage.setItem(STORE + 'kpi', JSON.stringify({ range: currentRange, byBrand: kpiByBrand }));
 }
 
 function trendHTML(diff) {
@@ -67,20 +67,6 @@ function trendHTML(diff) {
   return `<span class="trend flat">—</span>`;
 }
 
-// renderKPIs, renderCard, renderKanban: defined in BRAND FLAG section below
-
-function updateKPI(id, group, val) {
-  const s = kpiState[id];
-  const oldVal = s.val;
-  s.prev = s.val;
-  s.val = parseFloat(val) || 0;
-  if (s.val !== oldVal) {
-    const def = [...kpiDefs.vol,...kpiDefs.conv,...kpiDefs.rec].find(k => k.id === id);
-    addHist('kpi', `KPI alterado: <strong>${def ? def.label : id}</strong> — de <em>${oldVal}</em> para <em>${s.val}</em>`);
-  }
-  renderKPIs(group);
-  saveKPIToStorage();
-}
 
 // ── KANBAN ────────────────────────────────────────────────────────────────────
 let cards = [];
@@ -414,35 +400,38 @@ function applyRange() {
 // ── TAXAS (derivadas dos contadores) ────────────────────────────────────────────
 // Calculadas localmente a partir de leads/contatos/followup — sem buscas extras.
 // Direção: parte de baixo do funil ÷ leads, resultando em 0–100%.
-function computeRates() {
-  const v = (id) => (kpiState[id] ? kpiState[id].val : 0);
+// Taxas derivadas (por marca). Direção: parte do funil ÷ leads → 0–100%.
+function computeRates(st) {
+  const v = (id) => (st[id] ? st[id].val : 0);
   const pct = (num, den) => (den > 0 ? Math.round((num / den) * 100) : 0);
   const setVal = (id, value) => {
-    if (!kpiState[id]) return;
-    kpiState[id].prev = kpiState[id].val;
-    kpiState[id].val = value;
+    st[id] = st[id] || { val: 0, prev: 0 };
+    st[id].prev = st[id].val;
+    st[id].val = value;
   };
   setVal('txresp', pct(v('contatos'), v('leads')));   // contatos ÷ leads
   setVal('txqual', pct(v('qualif'), v('leads')));     // convidado webinar ÷ leads
 }
 
 // ── HUBSPOT ────────────────────────────────────────────────────────────────────
-// Chama o backend (Bun) em /api/kpis, que guarda o token e faz os search no Hubspot.
-// A resposta vem como { kpis: { <id>: número } } e é mesclada no kpiState.
+// Chama /api/kpis (diretoria) → { brands: [{ marca, kpis: {id: n} }] }.
+// Cada marca vira um bloco próprio de Volume/Conversão/Receita.
 async function loadKPIsFromHubspot() {
   try {
     const q = `?brand=${currentBrand}&start=${currentRange.start}&end=${currentRange.end}`;
     const res = await fetch('/api/kpis' + q);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    Object.entries(data.kpis || {}).forEach(([id, val]) => {
-      if (kpiState[id]) {
-        kpiState[id].prev = kpiState[id].val;
-        kpiState[id].val = Number(val) || 0;
-      }
+    (data.brands || []).forEach(({ marca, kpis }) => {
+      const st = kpiByBrand[marca] = kpiByBrand[marca] || {};
+      Object.entries(kpis).forEach(([id, val]) => {
+        st[id] = st[id] || { val: 0, prev: 0 };
+        st[id].prev = st[id].val;
+        st[id].val = Number(val) || 0;
+      });
+      computeRates(st);
     });
-    computeRates();
-    ['vol','conv','rec'].forEach(g => renderKPIs(g));
+    renderKpiBrands();
     saveKPIToStorage();
     showToast('KPIs atualizados do Hubspot');
   } catch (e) {
@@ -451,22 +440,31 @@ async function loadKPIsFromHubspot() {
   }
 }
 
-function renderKPIs(group) {
-  const container = document.getElementById(group + '-rows');
-  container.innerHTML = kpiDefs[group].map(k => {
-    const s = kpiState[k.id];
-    const diff = s.val - s.prev;
-    const unit = k.fmt === 'R$' ? 'R$' : (k.fmt === '%' ? '%' : '');
-    const ro = k.fmt === '%';   // taxas são derivadas → somente leitura
+// Renderiza um conjunto Volume/Conversão/Receita POR MARCA (empilhados).
+function renderKpiBrands() {
+  const host = document.getElementById('kpi-brands');
+  if (!host) return;
+  const fmtVal = (k, val) => (k.fmt === 'R$' ? 'R$ ' + val : (k.fmt === '%' ? val + '%' : val));
+  const rows = (group, st) => kpiDefs[group].map(k => {
+    const s = st[k.id] || { val: 0, prev: 0 };
     return `<div class="kpi-row">
       <span class="kpi-label">${k.label}</span>
-      <div class="kpi-right">
-        ${trendHTML(diff)}
-        <div class="kpi-input-wrap">
-          <input class="kpi-input${unit?' has-unit':''}${ro?' readonly':''}" type="number" min="0" value="${s.val}"
-            id="inp-${k.id}"${ro ? ' readonly title="Calculado automaticamente"' : ` onchange="updateKPI('${k.id}','${group}',this.value)"`}>
-          ${unit ? `<span class="kpi-unit">${unit}</span>` : ''}
-        </div>
+      <div class="kpi-right">${trendHTML(s.val - s.prev)}<span class="kpi-val">${fmtVal(k, s.val)}</span></div>
+    </div>`;
+  }).join('');
+  const card = (title, badgeCls, badge, group, st) => `
+    <div class="kpi-card">
+      <div class="kpi-card-head"><div class="kpi-card-title">${title}</div><span class="kpi-badge ${badgeCls}">${badge}</span></div>
+      <div class="kpi-rows">${rows(group, st)}</div>
+    </div>`;
+  host.innerHTML = brandsDaDiretoria.map(marca => {
+    const st = kpiByBrand[marca] || {};
+    return `<div class="brand-kpi">
+      <div class="brand-kpi-name">${marca}</div>
+      <div class="kpi-grid">
+        ${card('Volume', 'badge-vol', 'Vol', 'vol', st)}
+        ${card('Conversão', 'badge-conv', 'Conv', 'conv', st)}
+        ${card('Receita', 'badge-rec', 'R$', 'rec', st)}
       </div>
     </div>`;
   }).join('');
@@ -648,9 +646,9 @@ function renderKanban() {
   // Carrega cache local dos KPIs (fallback até o Hubspot responder)
   const kpiSaved = localStorage.getItem(STORE + 'kpi');
   if (kpiSaved) {
-    try { kpiState = JSON.parse(kpiSaved).state || kpiState; } catch {}
+    try { kpiByBrand = JSON.parse(kpiSaved).byBrand || {}; } catch {}
   }
-  ['vol','conv','rec'].forEach(g => renderKPIs(g));
+  renderKpiBrands();
   updateHeaderDate();
 
   // Carrega grupos (local, por marca) e depois os cards do banco

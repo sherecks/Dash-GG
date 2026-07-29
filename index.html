@@ -91,6 +91,11 @@
   .trend.up { color: var(--green); }
   .trend.down { color: #ef4444; }
   .trend.flat { color: var(--text-ter); }
+  /* Blocos de KPI por marca (empilhados) */
+  .brand-kpi { margin-bottom: 22px; }
+  .brand-kpi .kpi-grid { margin-bottom: 0; }
+  .brand-kpi-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; padding: 5px 12px; background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius-sm); display: inline-block; }
+  .kpi-val { font-size: 17px; font-weight: 700; color: var(--text); min-width: 56px; text-align: right; }
 
   /* PERIOD SWITCHER */
   .brand-switcher { display: flex; align-items: center; gap: 4px; background: var(--surface2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 3px; }
@@ -267,31 +272,9 @@
 
 <main class="main">
 
-  <!-- KPI -->
-  <div class="section-label">Indicadores principais</div>
-  <div class="kpi-grid">
-    <div class="kpi-card">
-      <div class="kpi-card-head">
-        <div><div class="kpi-card-title">Volume</div><div class="kpi-card-obj">Garantir atividade suficiente</div></div>
-        <span class="kpi-badge badge-vol">Vol</span>
-      </div>
-      <div class="kpi-rows" id="vol-rows"></div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-card-head">
-        <div><div class="kpi-card-title">Conversão</div><div class="kpi-card-obj">Garantir eficiência operacional</div></div>
-        <span class="kpi-badge badge-conv">Conv</span>
-      </div>
-      <div class="kpi-rows" id="conv-rows"></div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-card-head">
-        <div><div class="kpi-card-title">Receita</div><div class="kpi-card-obj">Garantir impacto financeiro</div></div>
-        <span class="kpi-badge badge-rec">R$</span>
-      </div>
-      <div class="kpi-rows" id="rec-rows"></div>
-    </div>
-  </div>
+  <!-- KPI (um bloco Volume/Conversão/Receita por marca da diretoria) -->
+  <div class="section-label">Indicadores principais — por marca</div>
+  <div id="kpi-brands"></div>
 
   <!-- KANBAN -->
   <div class="section-label order-kanban">Quadro de testes — kanban ágil</div>

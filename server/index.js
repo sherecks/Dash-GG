@@ -19,33 +19,40 @@ function todaySP() {
 // coluna `brand` de cards/groups e o escopo dos KPIs.
 const dirKey = (k) => (DIRETORIAS[k] ? k : DEFAULT_DIRETORIA);
 
-// Soma os KPIs de uma diretoria (todas as marcas dela juntas).
+// Executa tarefas em lotes de `perSec` por segundo (respeita o rate limit de
+// search do Hubspot, ~4/seg) — bem mais rápido que sequencial, sem estourar.
+async function runRateLimited(tasks, perSec = 4) {
+  for (let i = 0; i < tasks.length; i += perSec) {
+    const t0 = Date.now();
+    await Promise.all(tasks.slice(i, i + perSec).map((fn) => fn()));
+    const dt = Date.now() - t0;
+    if (i + perSec < tasks.length && dt < 1000) await sleep(1000 - dt);
+  }
+}
+
+// KPIs POR MARCA da diretoria (cada marca vira um bloco no dashboard).
 async function getKpis(dir, startDate, endDate) {
   const { start, end } = rangeBounds(startDate, endDate);
   const brands = DIRETORIAS[dir].brands;
   const between = (prop) => ({ propertyName: prop, operator: 'BETWEEN', value: start, highValue: end });
-  const marcaIn = (list) => ({ propertyName: BRAND_PROPERTY, operator: 'IN', values: list });
-  const kpis = {};
-  console.log(`\n[KPIs] ${startDate} -> ${endDate}  | diretoria: ${DIRETORIAS[dir].label} (${brands.length} marcas)`);
+  const marcaEq = (m) => ({ propertyName: BRAND_PROPERTY, operator: 'EQ', value: m });
+  console.log(`\n[KPIs] ${startDate} -> ${endDate}  | ${DIRETORIAS[dir].label} (${brands.length} marcas, por marca)`);
 
-  // KPIs simples: 1 grupo (dateProperty + marca IN + pipeline opcional)
-  for (const src of KPI_SOURCES) {
-    const filters = [between(src.dateProperty), marcaIn(brands)];
-    if (src.pipelineId) filters.push({ propertyName: 'pipeline', operator: 'EQ', value: String(src.pipelineId) });
-    kpis[src.kpiId] = await searchDealsCount([filters]);
-    console.log(`  ${src.kpiId.padEnd(9)} = ${String(kpis[src.kpiId]).padStart(5)}`);
-    await sleep(250);
+  const res = {};
+  const tasks = [];
+  for (const m of brands) {
+    for (const src of KPI_SOURCES) {
+      const filters = [between(src.dateProperty), marcaEq(m)];
+      if (src.pipelineId) filters.push({ propertyName: 'pipeline', operator: 'EQ', value: String(src.pipelineId) });
+      tasks.push(async () => { res[`${m}|${src.kpiId}`] = await searchDealsCount([filters]); });
+    }
+    tasks.push(async () => { res[`${m}|contatos`] = await searchDealsCount([[between(contatosProp(m)), marcaEq(m)]]); });
   }
+  await runRateLimited(tasks, 4);
 
-  // contatos: agrupa as marcas por propriedade de 1ª resposta e soma (OR entre grupos)
-  const porProp = {};
-  for (const m of brands) (porProp[contatosProp(m)] ||= []).push(m);
-  const grupos = Object.entries(porProp).map(([prop, list]) => [between(prop), marcaIn(list)]);
-  kpis.contatos = await searchDealsCount(grupos);
-  console.log(`  contatos  = ${String(kpis.contatos).padStart(5)}  (${grupos.length} grupo(s) de propriedade)`);
-  await sleep(250);
-
-  return { diretoria: dir, start: startDate, end: endDate, kpis };
+  const ids = [...KPI_SOURCES.map((s) => s.kpiId), 'contatos'];
+  const out = brands.map((m) => ({ marca: m, kpis: Object.fromEntries(ids.map((id) => [id, res[`${m}|${id}`] ?? 0])) }));
+  return { diretoria: dir, start: startDate, end: endDate, brands: out };
 }
 
 // ── CARDS (quadro de testes) ───────────────────────────────────────────────────
@@ -143,6 +150,7 @@ const CT = {
 
 Bun.serve({
   port: PORT,
+  idleTimeout: 120, // buscas por marca podem levar alguns segundos
   async fetch(req) {
     const url = new URL(req.url);
 
