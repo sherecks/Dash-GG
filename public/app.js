@@ -26,7 +26,7 @@ const PILL = '300';
 // Diretorias e as marcas de cada uma (as marcas viram TAGS nos cards do kanban).
 // A chave (fenix, camaleoes, furia) precisa bater com a do servidor (kpiMap.js).
 const DIRETORIAS = {
-  fenix:     { label: 'Fenix',     brands: ['4Beach', 'Ecoville', 'Fast Tennis', 'Suav', 'Maria Lavadeira'] },
+  fenix:     { label: 'Guardiões', brands: ['4Beach', 'Ecoville', 'Fast Tennis', 'Suav', 'Maria Lavadeira'] },
   camaleoes: { label: 'Camaleões', brands: ['Mestre de Obra', 'Mestre das Tintas', 'Shelf', 'Airlocker', 'La Bolaria', 'Agilihome'] },
   furia:     { label: 'Furia',     brands: ['Locar-x', 'Brumed', 'Saude Livre Vacinas', 'Doctor Fit'] },
 };
