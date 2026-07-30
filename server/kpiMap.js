@@ -84,7 +84,7 @@ export const contatosProp = (marca) => CONTATOS_POR_MARCA[marca] || CONTATOS_DEF
 // A chave (fenix, camaleoes, furia) precisa bater com a do front (app.js) e é o
 // valor guardado na coluna `brand` de cards/groups.
 export const DIRETORIAS = {
-  fenix:     { label: 'Fenix',     brands: ['4Beach', 'Ecoville', 'Fast Tennis', 'Suav', 'Maria Lavadeira'] },
+  fenix:     { label: 'Guardiões',     brands: ['4Beach', 'Ecoville', 'Fast Tennis', 'Suav', 'Maria Lavadeira'] },
   camaleoes: { label: 'Camaleões', brands: ['Mestre de Obra', 'Mestre das Tintas', 'Shelf', 'Airlocker', 'La Bolaria', 'Agilihome'] },
   furia:     { label: 'Furia',     brands: ['Locar-x', 'Brumed', 'Saude Livre Vacinas', 'Doctor Fit'] },
 };
