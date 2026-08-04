@@ -26,9 +26,8 @@ const PILL = '300';
 // Diretorias e as marcas de cada uma (as marcas viram TAGS nos cards do kanban).
 // A chave (fenix, camaleoes, furia) precisa bater com a do servidor (kpiMap.js).
 const DIRETORIAS = {
-  fenix:     { label: 'Guardiões', brands: ['4Beach', 'Ecoville', 'Fast Tennis', 'Suav', 'Maria Lavadeira'] },
-  camaleoes: { label: 'Camaleões', brands: ['Mestre de Obra', 'Mestre das Tintas', 'Shelf', 'Airlocker', 'La Bolaria', 'Agilihome'] },
-  furia:     { label: 'Furia',     brands: ['Locar-x', 'Brumed', 'Saude Livre Vacinas', 'Doctor Fit'] },
+  fenix: { label: 'Guardiões', brands: ['4Beach', 'Ecoville', 'Fast Tennis', 'Suav', 'Maria Lavadeira', 'Mestre de Obra', 'Mestre das Tintas', 'Agilihome'] },
+  furia: { label: 'Furia',     brands: ['Locar-x', 'Brumed', 'Saude Livre Vacinas', 'Doctor Fit', 'Airlocker', 'La Bolaria', 'Shelf'] },
 };
 // currentBrand guarda a CHAVE da diretoria (mantém o nome por compatibilidade).
 const currentBrand = DIRETORIAS[new URLSearchParams(location.search).get('brand')] ? new URLSearchParams(location.search).get('brand') : 'fenix';
