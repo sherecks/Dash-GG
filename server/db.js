@@ -31,6 +31,7 @@ export function toCard(r) {
     due: ymd(r.due_date),
     hyp: r.hyp || '',
     result: r.result || '',
+    fase: r.fase || '',
     tags: Array.isArray(r.tags) ? r.tags : (r.tags ? JSON.parse(r.tags) : []),
   };
 }

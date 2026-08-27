@@ -1,66 +1,54 @@
 import { join } from 'path';
-import { searchDealsCount, rangeBounds } from './hubspot.js';
-import { KPI_SOURCES, DIRETORIAS, DEFAULT_DIRETORIA, BRAND_PROPERTY, FI_ID, contatosProp } from './kpiMap.js';
 import { db, toCard, toGroup, pgIntArray } from './db.js';
 
 const PORT = process.env.PORT || 3000;
 const DIST = join(import.meta.dir, '..', 'dist');
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
+// `brand` é a coluna/param que guarda a DEMANDA (id) dona do card/grupo.
+const demandaOf = (url) => url.searchParams.get('brand') || '';
 
-// Data de hoje (YYYY-MM-DD) em horário de São Paulo.
-function todaySP() {
-  const sp = new Date(Date.now() - 3 * 3600 * 1000);
-  return sp.toISOString().slice(0, 10);
-}
-
-// Chave de diretoria válida (default se vier inválida). É o valor guardado na
-// coluna `brand` de cards/groups e o escopo dos KPIs.
-const dirKey = (k) => (DIRETORIAS[k] ? k : DEFAULT_DIRETORIA);
-
-// Executa tarefas em lotes de `perSec` por segundo (respeita o rate limit de
-// search do Hubspot, ~4/seg) — bem mais rápido que sequencial, sem estourar.
-async function runRateLimited(tasks, perSec = 4) {
-  for (let i = 0; i < tasks.length; i += perSec) {
-    const t0 = Date.now();
-    await Promise.all(tasks.slice(i, i + perSec).map((fn) => fn()));
-    const dt = Date.now() - t0;
-    if (i + perSec < tasks.length && dt < 1000) await sleep(1000 - dt);
-  }
-}
-
-// KPIs POR MARCA da diretoria (cada marca vira um bloco no dashboard).
-async function getKpis(dir, startDate, endDate) {
-  const { start, end } = rangeBounds(startDate, endDate);
-  const brands = DIRETORIAS[dir].brands;
-  const between = (prop) => ({ propertyName: prop, operator: 'BETWEEN', value: start, highValue: end });
-  const marcaEq = (m) => ({ propertyName: BRAND_PROPERTY, operator: 'EQ', value: m });
-  console.log(`\n[KPIs] ${startDate} -> ${endDate}  | ${DIRETORIAS[dir].label} (${brands.length} marcas, por marca)`);
-
-  const res = {};
-  const tasks = [];
-  for (const m of brands) {
-    for (const src of KPI_SOURCES) {
-      const filters = [between(src.dateProperty), marcaEq(m)];
-      if (src.pipelineId) filters.push({ propertyName: 'pipeline', operator: 'EQ', value: String(src.pipelineId) });
-      tasks.push(async () => { res[`${m}|${src.kpiId}`] = await searchDealsCount([filters]); });
+// ── DEMANDAS (projetos — no lugar das antigas diretorias) ───────────────────────
+async function handleDemandas(req, url) {
+  if (!db) return Response.json({ error: 'DATABASE_URL não configurada no .env' }, { status: 503 });
+  const method = req.method;
+  const idMatch = url.pathname.match(/^\/api\/demandas\/(\d+)$/);
+  try {
+    if (method === 'GET' && url.pathname === '/api/demandas') {
+      const rows = await db`select id, name from demandas order by id`;
+      return Response.json(rows.map((r) => ({ id: Number(r.id), name: r.name })));
     }
-    tasks.push(async () => { res[`${m}|contatos`] = await searchDealsCount([[between(contatosProp(m)), marcaEq(m)]]); });
+    if (method === 'POST' && url.pathname === '/api/demandas') {
+      const b = await req.json();
+      const name = (b.name || '').trim();
+      if (!name) return Response.json({ error: 'Nome obrigatório' }, { status: 400 });
+      const [row] = await db`insert into demandas (name) values (${name}) returning id, name`;
+      return Response.json({ id: Number(row.id), name: row.name });
+    }
+    if (method === 'PUT' && idMatch) {
+      const b = await req.json();
+      const [row] = await db`update demandas set name=${(b.name || '').trim()} where id=${Number(idMatch[1])} returning id, name`;
+      return row ? Response.json({ id: Number(row.id), name: row.name }) : new Response('Not found', { status: 404 });
+    }
+    if (method === 'DELETE' && idMatch) {
+      const id = String(Number(idMatch[1]));
+      await db`delete from groups where brand=${id}`;
+      await db`delete from cards where brand=${id}`;
+      await db`delete from demandas where id=${Number(id)}`;
+      return new Response(null, { status: 204 });
+    }
+    return new Response('Method not allowed', { status: 405 });
+  } catch (e) {
+    console.error('Erro /api/demandas:', e.message);
+    return Response.json({ error: String(e.message) }, { status: 500 });
   }
-  await runRateLimited(tasks, 4);
-
-  const ids = [...KPI_SOURCES.map((s) => s.kpiId), 'contatos'];
-  const out = brands.map((m) => ({ marca: m, kpis: Object.fromEntries(ids.map((id) => [id, res[`${m}|${id}`] ?? 0])) }));
-  return { diretoria: dir, start: startDate, end: endDate, brands: out };
 }
 
-// ── CARDS (quadro de testes) ───────────────────────────────────────────────────
+// ── CARDS (kanban) ──────────────────────────────────────────────────────────────
 async function handleCards(req, url) {
   if (!db) return Response.json({ error: 'DATABASE_URL não configurada no .env' }, { status: 503 });
   const method = req.method;
   const idMatch = url.pathname.match(/^\/api\/cards\/(\d+)$/);
-  const brand = dirKey(url.searchParams.get('brand'));
+  const brand = demandaOf(url);
   try {
     if (method === 'GET' && url.pathname === '/api/cards') {
       const rows = await db`select * from cards where brand=${brand} order by position, id`;
@@ -69,10 +57,10 @@ async function handleCards(req, url) {
     if (method === 'POST' && url.pathname === '/api/cards') {
       const b = await req.json();
       const [row] = await db`
-        insert into cards (brand, title, stage, owner, start_date, due_date, hyp, result, tags)
+        insert into cards (brand, title, stage, owner, start_date, due_date, hyp, result, tags, fase)
         values (${brand}, ${b.title}, ${b.stage || 'backlog'}, ${b.owner || ''},
                 ${b.date || null}, ${b.due || null}, ${b.hyp || ''}, ${b.result || ''},
-                ${JSON.stringify(b.tags || [])}::jsonb)
+                ${JSON.stringify(b.tags || [])}::jsonb, ${b.fase || ''})
         returning *`;
       return Response.json(toCard(row));
     }
@@ -83,14 +71,13 @@ async function handleCards(req, url) {
           title=${b.title}, stage=${b.stage}, owner=${b.owner || ''},
           start_date=${b.date || null}, due_date=${b.due || null},
           hyp=${b.hyp || ''}, result=${b.result || ''},
-          tags=${JSON.stringify(b.tags || [])}::jsonb, updated_at=now()
+          tags=${JSON.stringify(b.tags || [])}::jsonb, fase=${b.fase || ''}, updated_at=now()
         where id=${Number(idMatch[1])} returning *`;
       return row ? Response.json(toCard(row)) : new Response('Not found', { status: 404 });
     }
     if (method === 'DELETE' && idMatch) {
       const cid = Number(idMatch[1]);
       await db`delete from cards where id=${cid}`;
-      // tira o card dos grupos e dissolve grupos que ficaram com menos de 2 membros
       await db`update groups set card_ids = array_remove(card_ids, ${cid}::bigint) where ${cid}::bigint = any(card_ids)`;
       await db`delete from groups where coalesce(array_length(card_ids, 1), 0) < 2`;
       return new Response(null, { status: 204 });
@@ -107,7 +94,7 @@ async function handleGroups(req, url) {
   if (!db) return Response.json({ error: 'DATABASE_URL não configurada no .env' }, { status: 503 });
   const method = req.method;
   const idMatch = url.pathname.match(/^\/api\/groups\/(\d+)$/);
-  const brand = dirKey(url.searchParams.get('brand'));
+  const brand = demandaOf(url);
   try {
     if (method === 'GET' && url.pathname === '/api/groups') {
       const rows = await db`select * from groups where brand=${brand} order by id`;
@@ -150,31 +137,15 @@ const CT = {
 
 Bun.serve({
   port: PORT,
-  idleTimeout: 120, // buscas por marca podem levar alguns segundos
   async fetch(req) {
     const url = new URL(req.url);
 
-    // ── API ──
-    if (url.pathname === '/api/kpis') {
-      const brand = dirKey(url.searchParams.get('brand'));
-      const start = url.searchParams.get('start');
-      const end = url.searchParams.get('end');
-      const s = isDate(start) ? start : todaySP();
-      const e = isDate(end) ? end : s;
-      try {
-        return Response.json(await getKpis(brand, s, e));
-      } catch (err) {
-        console.error('Erro /api/kpis:', err.message);
-        return Response.json({ error: String(err.message) }, { status: 500 });
-      }
+    if (url.pathname === '/api/demandas' || url.pathname.startsWith('/api/demandas/')) {
+      return handleDemandas(req, url);
     }
-
-    // ── Cards (quadro de testes) ──
     if (url.pathname === '/api/cards' || url.pathname.startsWith('/api/cards/')) {
       return handleCards(req, url);
     }
-
-    // ── Grupos (pilha recolhível) ──
     if (url.pathname === '/api/groups' || url.pathname.startsWith('/api/groups/')) {
       return handleGroups(req, url);
     }
@@ -186,11 +157,8 @@ Bun.serve({
       const ext = rel.slice(rel.lastIndexOf('.'));
       return new Response(file, { headers: CT[ext] ? { 'Content-Type': CT[ext] } : {} });
     }
-
-    // Fallback para index.html (rotas do front)
     const index = Bun.file(join(DIST, 'index.html'));
     if (await index.exists()) return new Response(index, { headers: { 'Content-Type': CT['.html'] } });
-
     return new Response('Not found', { status: 404 });
   },
 });

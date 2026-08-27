@@ -3,66 +3,102 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title id="page-title">Dashboard 300</title>
+<title id="page-title">Karaguá · Kanban</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* ================================================================
+     Karaguá Design System v3.0 — "O Estuário"
+     Verde Karaguá em 3 tons + coral/positivo como sinais. Superfícies
+     neutras quentes (nunca #FFF). Cantos retos (3–8px). JetBrains Mono
+     para números/dados. Aileron (body) com fallback system-ui.
+     ================================================================ */
   :root {
-    --bg: #0d0d0d;
-    --surface: #141414;
-    --surface2: #1a1a1a;
-    --surface3: #202020;
-    --border: rgba(255,255,255,0.07);
-    --border-strong: rgba(255,255,255,0.13);
-    --text: #f0f0f0;
-    --text-sec: #888;
-    --text-ter: #555;
-    --accent: #e30000;
-    --green: #22c55e;
-    --green-dim: rgba(34,197,94,0.1);
-    --amber: #f59e0b;
-    --amber-dim: rgba(245,158,11,0.1);
-    --blue: #3b82f6;
-    --blue-dim: rgba(59,130,246,0.1);
-    --font: 'Inter', sans-serif;
-    --radius: 10px;
+    /* marca — verde Karaguá */
+    --k-bright: #c7d926;
+    --k-mid: #adbc25;
+    --k-deep: #828e1a;
+    --k-deep-aa: #5f6a12;
+    /* neutros — nunca branco puro */
+    --k-shell: #f7f5f0;
+    --k-fog: #ebe8e2;
+    --k-elevated: #fbf9f4;
+    --k-carbon: #1a2332;
+    /* semânticos — só sinais */
+    --k-coral: #e85d4a;
+    --k-positive: #27ae60;
+
+    --bg: var(--k-shell);
+    --surface: var(--k-elevated);
+    --surface2: var(--k-elevated);
+    --surface3: var(--k-fog);
+    --border: #e2dfd6;
+    --border-strong: #d6d2c7;
+    --text: #2c3e50;
+    --text-sec: #52606e;
+    --text-ter: #8b97a4;
+
+    --accent: #828e1a;
+    --accent-ink: #1a2332;
+    --accent-hover: #6f7a15;
+    --ring: rgba(199,217,38,0.38);
+
+    --green: #27ae60;
+    --green-dim: rgba(39,174,96,0.12);
+    --amber: #828e1a;
+    --amber-dim: rgba(130,142,26,0.14);
+    --blue: #52606e;
+    --blue-dim: rgba(82,96,110,0.10);
+    --coral: #e85d4a;
+    --coral-dim: rgba(232,93,74,0.12);
+    --violet: #7a8718;
+    --violet-dim: rgba(130,142,26,0.12);
+
+    --font: "Aileron", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    --radius: 8px;
     --radius-sm: 6px;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.5; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  ::selection { background: color-mix(in srgb, var(--k-bright) 35%, transparent); color: var(--text); }
+  @media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 
   /* HEADER */
   .header {
-    background: var(--surface); border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--k-shell) 86%, transparent); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
     padding: 0 32px; display: flex; align-items: center; justify-content: space-between;
     height: 64px; position: sticky; top: 0; z-index: 50;
   }
   .header-left { display: flex; align-items: center; gap: 16px; }
-  .logo-pill { background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 4px 10px; border-radius: 4px; }
+  .logo-pill { background: var(--k-bright); color: var(--accent-ink); font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 4px; }
   .header-title { font-size: 14px; font-weight: 600; color: var(--text); }
   .header-sub { font-size: 12px; color: var(--text-sec); margin-top: 1px; }
   .header-right { display: flex; align-items: center; gap: 12px; }
-  .status-live { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--green); background: var(--green-dim); padding: 4px 10px; border-radius: 20px; font-weight: 500; }
+  .status-live { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--green); background: var(--green-dim); padding: 4px 10px; border-radius: 20px; font-weight: 600; }
   .dot-live { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   #header-date { font-size: 12px; color: var(--text-sec); }
   .btn-hist {
-    background: var(--surface2); color: var(--text-sec); border: 1px solid var(--border-strong);
-    border-radius: var(--radius-sm); padding: 7px 14px; font-size: 12px; font-weight: 500;
-    cursor: pointer; font-family: var(--font); transition: color .15s, border-color .15s;
+    background: var(--surface); color: var(--text-sec); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); padding: 7px 14px; font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: var(--font); transition: color .15s, border-color .15s, background .15s;
     display: flex; align-items: center; gap: 6px;
   }
-  .btn-hist:hover { color: var(--text); border-color: var(--border-strong); }
-  .btn-save { background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); padding: 7px 16px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font); transition: opacity .15s; }
-  .btn-save:hover { opacity: .85; }
+  .btn-hist:hover { color: var(--text); border-color: var(--text-ter); background: var(--k-fog); }
+  .btn-save { background: var(--accent); color: var(--k-shell); border: none; border-radius: var(--radius-sm); padding: 7px 16px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font); transition: background .15s; }
+  .btn-save:hover { background: var(--accent-hover); }
+  .btn-save:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
 
   /* LAYOUT */
   .main { max-width: 1320px; margin: 0 auto; padding: 28px 32px 60px; display: flex; flex-direction: column; }
-  .order-kanban { order: -1; }  /* kanban vai para o topo; KPIs ficam abaixo */
-  .section-label { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text-ter); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .order-kanban { order: -1; }
+  .section-label { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--text-ter); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
   .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-  /* KPI */
+  /* KPI (legado — oculto no pivô) */
   .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
   .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .kpi-card-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 14px; border-bottom: 1px solid var(--border); }
@@ -70,44 +106,48 @@
   .kpi-card-obj { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
   .kpi-badge { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 9px; border-radius: 4px; }
   .badge-vol { background: var(--blue-dim); color: var(--blue); }
-  .badge-conv { background: var(--amber-dim); color: var(--amber); }
+  .badge-conv { background: var(--amber-dim); color: var(--k-deep-aa); }
   .badge-rec { background: var(--green-dim); color: var(--green); }
   .kpi-rows { padding: 6px 0; }
   .kpi-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; border-bottom: 1px solid var(--border); transition: background .1s; }
   .kpi-row:last-child { border-bottom: none; }
-  .kpi-row:hover { background: var(--surface2); }
+  .kpi-row:hover { background: var(--k-fog); }
   .kpi-label { font-size: 12px; color: var(--text-sec); flex: 1; }
   .kpi-right { display: flex; align-items: center; gap: 10px; }
   .kpi-input-wrap { position: relative; }
-  .kpi-input { background: var(--surface3); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font); font-size: 17px; font-weight: 700; width: 88px; text-align: right; padding: 4px 8px; outline: none; transition: border-color .15s; -moz-appearance: textfield; }
+  .kpi-input { background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text); font-family: var(--mono); font-size: 17px; font-weight: 700; width: 88px; text-align: right; padding: 4px 8px; outline: none; transition: border-color .15s, box-shadow .15s; -moz-appearance: textfield; }
   .kpi-input::-webkit-inner-spin-button { display: none; }
-  .kpi-input:focus { border-color: var(--accent); background: rgba(227,0,0,0.06); }
-  .kpi-input.readonly { cursor: default; color: var(--text-sec); background: var(--surface2); }
-  .kpi-input.readonly:focus { border-color: var(--border-strong); background: var(--surface2); }
+  .kpi-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+  .kpi-input.readonly { cursor: default; color: var(--text-sec); background: var(--k-fog); }
+  .kpi-input.readonly:focus { border-color: var(--border-strong); background: var(--k-fog); box-shadow: none; }
   .kpi-unit { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 10px; color: var(--text-ter); pointer-events: none; }
   .kpi-input.has-unit { padding-right: 20px; }
-  .trend { display: flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; min-width: 44px; justify-content: flex-end; }
+  .trend { display: flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; min-width: 44px; justify-content: flex-end; font-family: var(--mono); }
   .trend svg { width: 11px; height: 11px; }
   .trend.up { color: var(--green); }
-  .trend.down { color: #ef4444; }
+  .trend.down { color: var(--coral); }
   .trend.flat { color: var(--text-ter); }
-  /* Blocos de KPI por marca (empilhados) */
   .brand-kpi { margin-bottom: 22px; }
   .brand-kpi .kpi-grid { margin-bottom: 0; }
-  .brand-kpi-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; padding: 5px 12px; background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius-sm); display: inline-block; }
-  .kpi-val { font-size: 17px; font-weight: 700; color: var(--text); min-width: 56px; text-align: right; }
+  .brand-kpi-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; padding: 5px 12px; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius-sm); display: inline-block; }
+  .kpi-val { font-size: 17px; font-weight: 700; color: var(--text); min-width: 56px; text-align: right; font-family: var(--mono); }
 
-  /* PERIOD SWITCHER */
-  .brand-switcher { display: flex; align-items: center; gap: 4px; background: var(--surface2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 3px; }
+  /* DEMANDA SWITCHER */
+  .brand-switcher { display: flex; align-items: center; gap: 4px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 3px; }
   .brand-switcher-label { font-size: 10px; color: var(--text-ter); padding: 0 6px; white-space: nowrap; }
-  .brand-btn { font-size: 11px; font-weight: 500; padding: 4px 11px; border-radius: 4px; border: none; background: transparent; color: var(--text-sec); cursor: pointer; font-family: var(--font); transition: background .15s, color .15s; white-space: nowrap; }
-  .brand-btn:hover { background: var(--surface3); color: var(--text); }
-  .brand-btn.active { background: var(--accent); color: #fff; font-weight: 600; }
-  .date-input { background: var(--surface3); border: 1px solid var(--border-strong); border-radius: 4px; color: var(--text); font-family: var(--font); font-size: 11px; padding: 4px 6px; outline: none; color-scheme: dark; }
-  .date-input:focus { border-color: var(--accent); }
+  .brand-btn { font-size: 11px; font-weight: 600; padding: 4px 11px; border-radius: 4px; border: none; background: transparent; color: var(--text-sec); cursor: pointer; font-family: var(--font); transition: background .15s, color .15s; white-space: nowrap; }
+  .brand-btn:hover { background: var(--k-fog); color: var(--text); }
+  .brand-btn.active { background: var(--accent); color: var(--k-shell); font-weight: 600; }
+  .brand-btn.dm-new { color: var(--k-deep-aa); border: 1px dashed var(--border-strong); }
+  .brand-btn.dm-new:hover { border-color: var(--accent); color: var(--accent); background: transparent; }
+  .brand-btn.dm-mini { padding: 4px 8px; color: var(--text-ter); }
+  .brand-btn.dm-mini:hover { color: var(--text); }
+  .brand-btn.dm-del:hover { color: var(--coral); }
+  .date-input { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 4px; color: var(--text); font-family: var(--mono); font-size: 11px; padding: 4px 6px; outline: none; color-scheme: light; }
+  .date-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
   .date-sep { font-size: 11px; color: var(--text-ter); }
-  .date-apply { background: var(--accent); color: #fff; font-weight: 600; }
-  .date-apply:hover { background: var(--accent); color: #fff; opacity: .87; }
+  .date-apply { background: var(--accent); color: var(--k-shell); font-weight: 600; }
+  .date-apply:hover { background: var(--accent-hover); color: var(--k-shell); }
 
   /* KANBAN */
   .kanban-section { margin-bottom: 28px; }
@@ -116,127 +156,133 @@
   .kanban-col-head { padding: 14px 16px 12px; border-bottom: 1px solid var(--border); }
   .col-title-row { display: flex; align-items: center; gap: 8px; }
   .col-name { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
-  .col-count { font-size: 10px; font-weight: 700; background: var(--surface3); border: 1px solid var(--border-strong); border-radius: 10px; padding: 1px 7px; color: var(--text-sec); }
-  .wip-tag { font-size: 9px; font-weight: 700; background: var(--amber-dim); color: var(--amber); border-radius: 4px; padding: 2px 6px; letter-spacing: .05em; }
+  .col-count { font-family: var(--mono); font-size: 10px; font-weight: 700; background: var(--surface3); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; color: var(--text-sec); }
+  .wip-tag { font-family: var(--mono); font-size: 9px; font-weight: 700; background: var(--amber-dim); color: var(--k-deep-aa); border-radius: 4px; padding: 2px 6px; letter-spacing: .05em; }
   .col-desc { font-size: 11px; color: var(--text-ter); margin-top: 3px; }
   .kanban-cards { flex: 1; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 60px; }
-  .kanban-cards.drag-over { background: rgba(227,0,0,0.04); border-radius: var(--radius-sm); }
+  .kanban-cards.drag-over { background: color-mix(in srgb, var(--k-deep) 8%, transparent); border-radius: var(--radius-sm); }
 
   /* KCARD */
-  .kcard { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 12px; cursor: grab; transition: border-color .15s; position: relative; }
-  .kcard:hover { border-color: var(--border-strong); }
+  .kcard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 12px; cursor: grab; transition: border-color .15s, box-shadow .15s; position: relative; box-shadow: 0 1px 2px rgba(44,62,80,.05); }
+  .kcard:hover { border-color: var(--border-strong); box-shadow: 0 2px 6px rgba(44,62,80,.08); }
   .kcard.dragging { opacity: .4; cursor: grabbing; }
-  .kcard-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
-  .kcard-hyp { font-size: 11px; color: var(--text-sec); font-style: italic; margin-bottom: 5px; line-height: 1.4; }
+  .kcard-title { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+  .kcard-hyp { font-size: 11px; color: var(--text-sec); margin-bottom: 5px; line-height: 1.4; }
   .kcard-result { font-size: 11px; color: var(--green); display: flex; gap: 4px; align-items: flex-start; margin-bottom: 5px; }
   .kcard-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
-  .kcard-chip { font-size: 10px; padding: 2px 7px; border-radius: 10px; background: var(--surface3); color: var(--text-sec); display: flex; align-items: center; gap: 3px; }
-  .kcard-chip.owner-chip { background: rgba(59,130,246,0.1); color: #6fa8f5; }
-  .kcard-chip.due-chip { background: rgba(245,158,11,0.1); color: #f5b042; }
-  .kcard-chip.due-chip.overdue { background: rgba(239,68,68,0.12); color: #f87171; }
+  .kcard-chip { font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 10px; background: var(--surface3); color: var(--text-sec); display: flex; align-items: center; gap: 3px; }
+  .kcard-chip.owner-chip { background: var(--blue-dim); color: var(--blue); }
+  .kcard-chip.due-chip { background: var(--surface3); color: var(--text-sec); }
+  .kcard-chip.due-chip.overdue { background: var(--coral-dim); color: var(--coral); }
   .kcard-actions { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
-  .kcard-btn { font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 4px; background: var(--surface3); border: 1px solid var(--border-strong); color: var(--text-sec); cursor: pointer; font-family: var(--font); transition: background .1s, color .1s; }
-  .kcard-btn:hover { background: var(--surface); color: var(--text); }
-  .kcard-btn.edit-btn { color: var(--blue); }
-  .kcard-btn.del-btn { color: #ef4444; }
+  .kcard-btn { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 4px; background: var(--surface3); border: 1px solid var(--border); color: var(--text-sec); cursor: pointer; font-family: var(--font); transition: background .1s, color .1s; }
+  .kcard-btn:hover { background: var(--k-fog); color: var(--text); }
+  .kcard-btn.edit-btn { color: var(--k-deep-aa); }
+  .kcard-btn.del-btn { color: var(--coral); }
 
   .col-add-footer { padding: 10px; border-top: 1px solid var(--border); }
-  .btn-add-card { width: 100%; background: none; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); color: var(--text-ter); font-size: 11px; font-family: var(--font); padding: 7px; cursor: pointer; transition: border-color .15s, color .15s; display: flex; align-items: center; justify-content: center; gap: 5px; }
+  .btn-add-card { width: 100%; background: none; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); color: var(--text-ter); font-size: 11px; font-family: var(--font); font-weight: 600; padding: 7px; cursor: pointer; transition: border-color .15s, color .15s; display: flex; align-items: center; justify-content: center; gap: 5px; }
   .btn-add-card:hover { border-color: var(--accent); color: var(--accent); }
 
-  #col-backlog   { border-top: 2px solid var(--blue); }
-  #col-teste     { border-top: 2px solid var(--amber); }
-  #col-validado  { border-top: 2px solid var(--green); }
-  #col-descartado { border-top: 2px solid #ef4444; }
+  #col-backlog   { border-top: 2px solid #6b7b8d; }
+  #col-teste     { border-top: 2px solid var(--k-deep); }
+  #col-validado  { border-top: 2px solid var(--k-mid); }
+  #col-descartado { border-top: 2px solid var(--green); }
 
   /* GRUPOS (pilha recolhível) */
   .kanban-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; min-height: 32px; }
   .btn-group-mode { border: 1px solid var(--border-strong); }
-  .btn-group-mode.active { background: var(--accent); color: #fff; }
+  .btn-group-mode.active { background: var(--accent); color: var(--k-shell); }
   .group-bar { display: none; align-items: center; gap: 10px; font-size: 12px; color: var(--text-sec); }
   .group-bar.open { display: flex; }
   .group-bar .btn-confirm, .group-bar .btn-cancel { padding: 5px 12px; font-size: 12px; }
   .kcard-check { position: absolute; top: 8px; right: 8px; width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; z-index: 2; }
   .kcard.selecting { cursor: pointer; }
-  .kgroup { background: var(--surface2); border: 1px solid var(--border-strong); border-left: 3px solid var(--blue); border-radius: var(--radius-sm); margin-bottom: 8px; overflow: hidden; }
+  .kgroup { background: var(--surface); border: 1px solid var(--border-strong); border-left: 3px solid var(--accent); border-radius: var(--radius-sm); margin-bottom: 8px; overflow: hidden; }
   .group-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer; font-size: 12px; }
-  .group-head:hover { background: var(--surface3); }
+  .group-head:hover { background: var(--k-fog); }
   .group-toggle { color: var(--text-ter); width: 10px; }
-  .group-name { font-weight: 600; flex: 1; color: var(--text); }
-  .group-count { font-size: 10px; font-weight: 700; background: var(--surface3); border: 1px solid var(--border-strong); border-radius: 10px; padding: 1px 7px; color: var(--text-sec); }
-  .group-prog { font-size: 10px; color: var(--green); white-space: nowrap; }
+  .group-name { font-weight: 700; flex: 1; color: var(--text); }
+  .group-count { font-family: var(--mono); font-size: 10px; font-weight: 700; background: var(--surface3); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; color: var(--text-sec); }
+  .group-prog { font-family: var(--mono); font-size: 10px; color: var(--green); white-space: nowrap; }
   .group-body { border-top: 1px solid var(--border); padding: 6px; display: flex; flex-direction: column; gap: 5px; }
-  .group-item { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; }
-  .gi-stage { font-size: 9px; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: var(--surface3); color: var(--text-sec); white-space: nowrap; }
-  .gi-stage.st-backlog { color: var(--blue); }
-  .gi-stage.st-teste { color: var(--amber); }
-  .gi-stage.st-validado { color: var(--green); }
-  .gi-stage.st-descartado { color: #ef4444; }
+  .group-item { display: flex; align-items: center; gap: 8px; background: var(--k-elevated); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; }
+  .gi-stage { font-family: var(--mono); font-size: 9px; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: var(--surface3); color: var(--text-sec); white-space: nowrap; }
+  .gi-stage.st-backlog { color: #6b7b8d; }
+  .gi-stage.st-teste { color: var(--k-deep); }
+  .gi-stage.st-validado { color: var(--k-deep-aa); }
+  .gi-stage.st-descartado { color: var(--green); }
   .gi-title { flex: 1; font-size: 12px; }
   .gi-actions { display: flex; gap: 4px; }
-  .group-ungroup { width: 100%; background: none; border: none; border-top: 1px solid var(--border); color: #ef4444; font-size: 11px; padding: 7px; cursor: pointer; font-family: var(--font); }
-  .group-ungroup:hover { background: rgba(239,68,68,.08); }
+  .group-ungroup { width: 100%; background: none; border: none; border-top: 1px solid var(--border); color: var(--coral); font-size: 11px; font-weight: 600; padding: 7px; cursor: pointer; font-family: var(--font); }
+  .group-ungroup:hover { background: var(--coral-dim); }
 
-  /* TAGS (marcas) — chips de toggle */
+  /* TAGS (metodologias) — chips de toggle */
   .tag-options { display: flex; flex-wrap: wrap; gap: 8px; }
-  .tag-check { display: inline-flex; align-items: center; font-size: 12px; line-height: 1; padding: 7px 13px; border: 1px solid var(--border-strong); border-radius: 20px; cursor: pointer; color: var(--text-sec); background: var(--surface2); user-select: none; white-space: nowrap; transition: background .12s, color .12s, border-color .12s; }
+  .tag-check { display: inline-flex; align-items: center; font-size: 12px; line-height: 1; padding: 7px 13px; border: 1px solid var(--border-strong); border-radius: 20px; cursor: pointer; color: var(--text-sec); background: var(--surface); user-select: none; white-space: nowrap; transition: background .12s, color .12s, border-color .12s; }
   .tag-check:hover { color: var(--text); border-color: var(--text-ter); }
   .tag-check input { display: none; }
-  .tag-check.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .tag-check.on { background: var(--accent); border-color: var(--accent); color: var(--k-shell); font-weight: 600; }
   .tag-check.on::before { content: '✓'; font-weight: 700; margin-right: 6px; }
   .kcard-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 6px; }
-  .kcard-tag { font-size: 9px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: rgba(59,130,246,0.12); color: #6fa8f5; }
+  .kcard-tag { font-family: var(--mono); font-size: 9px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: var(--amber-dim); color: var(--k-deep-aa); }
+  .kcard-chip.fase-chip { background: var(--surface3); color: var(--text-sec); }
 
   /* MODAL */
-  .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200; align-items: center; justify-content: center; }
+  .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(26,35,50,.5); backdrop-filter: blur(2px); z-index: 200; align-items: center; justify-content: center; }
   .modal-backdrop.open { display: flex; }
-  .modal { background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 24px; width: 440px; max-width: calc(100vw - 32px); max-height: 90vh; overflow-y: auto; }
+  .modal { background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 24px; width: 440px; max-width: calc(100vw - 32px); max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(26,35,50,.22); }
   .modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 18px; }
   .modal-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .modal-field { margin-bottom: 14px; }
-  .modal-field label { display: block; font-size: 11px; font-weight: 600; color: var(--text-sec); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .06em; }
-  .modal-field input, .modal-field select, .modal-field textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font); font-size: 13px; padding: 8px 11px; outline: none; transition: border-color .15s; }
-  .modal-field input:focus, .modal-field select:focus, .modal-field textarea:focus { border-color: var(--accent); }
+  .modal-field label { display: block; font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--text-sec); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .06em; }
+  .modal-field input, .modal-field select, .modal-field textarea { width: 100%; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font); font-size: 13px; padding: 8px 11px; outline: none; transition: border-color .15s, box-shadow .15s; }
+  .modal-field input:focus, .modal-field select:focus, .modal-field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
   .modal-field textarea { resize: vertical; min-height: 68px; line-height: 1.55; }
-  .modal-field select option { background: var(--surface2); }
+  .modal-field select option { background: var(--surface); }
   .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
-  .btn-cancel { background: var(--surface2); border: 1px solid var(--border-strong); color: var(--text-sec); border-radius: var(--radius-sm); padding: 8px 18px; font-size: 13px; font-family: var(--font); cursor: pointer; }
-  .btn-confirm { background: var(--accent); border: none; color: #fff; border-radius: var(--radius-sm); padding: 8px 18px; font-size: 13px; font-weight: 600; font-family: var(--font); cursor: pointer; transition: opacity .15s; }
-  .btn-confirm:hover { opacity: .87; }
+  .btn-cancel { background: var(--surface); border: 1px solid var(--border-strong); color: var(--text-sec); border-radius: var(--radius-sm); padding: 8px 18px; font-size: 13px; font-family: var(--font); font-weight: 600; cursor: pointer; transition: background .15s; }
+  .btn-cancel:hover { background: var(--k-fog); }
+  .btn-confirm { background: var(--accent); border: none; color: var(--k-shell); border-radius: var(--radius-sm); padding: 8px 18px; font-size: 13px; font-weight: 600; font-family: var(--font); cursor: pointer; transition: background .15s; }
+  .btn-confirm:hover { background: var(--accent-hover); }
+  .btn-confirm:focus-visible, .btn-cancel:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
 
   /* HISTÓRICO DRAWER */
-  .hist-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 180; }
+  .hist-backdrop { display: none; position: fixed; inset: 0; background: rgba(26,35,50,.35); z-index: 180; }
   .hist-backdrop.open { display: block; }
   .hist-drawer {
     position: fixed; top: 0; right: -480px; width: 460px; max-width: 95vw;
     height: 100vh; background: var(--surface); border-left: 1px solid var(--border-strong);
-    z-index: 190; display: flex; flex-direction: column;
-    transition: right .3s cubic-bezier(.4,0,.2,1);
+    z-index: 190; display: flex; flex-direction: column; box-shadow: -18px 0 50px rgba(26,35,50,.14);
+    transition: right .3s cubic-bezier(.22,1,.36,1);
   }
   .hist-drawer.open { right: 0; }
   .hist-head { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
   .hist-head h2 { font-size: 15px; font-weight: 700; }
   .hist-head-right { display: flex; align-items: center; gap: 10px; }
-  .btn-clear-hist { font-size: 11px; color: #ef4444; background: none; border: 1px solid rgba(239,68,68,.3); border-radius: var(--radius-sm); padding: 4px 10px; cursor: pointer; font-family: var(--font); }
-  .btn-close-hist { background: var(--surface3); border: 1px solid var(--border-strong); color: var(--text-sec); border-radius: var(--radius-sm); padding: 5px 12px; font-size: 12px; cursor: pointer; font-family: var(--font); }
-  .hist-filters { padding: 12px 24px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; flex-shrink: 0; }
-  .hist-filter-btn { font-size: 11px; font-weight: 500; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border-strong); background: none; color: var(--text-sec); cursor: pointer; font-family: var(--font); transition: all .1s; }
-  .hist-filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-clear-hist { font-size: 11px; color: var(--coral); background: none; border: 1px solid color-mix(in srgb, var(--coral) 34%, transparent); border-radius: var(--radius-sm); padding: 4px 10px; cursor: pointer; font-family: var(--font); font-weight: 600; }
+  .btn-clear-hist:hover { background: var(--coral-dim); }
+  .btn-close-hist { background: var(--surface3); border: 1px solid var(--border-strong); color: var(--text-sec); border-radius: var(--radius-sm); padding: 5px 12px; font-size: 12px; cursor: pointer; font-family: var(--font); font-weight: 600; }
+  .btn-close-hist:hover { background: var(--k-fog); color: var(--text); }
+  .hist-filters { padding: 12px 24px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
+  .hist-filter-btn { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border-strong); background: none; color: var(--text-sec); cursor: pointer; font-family: var(--font); transition: all .1s; }
+  .hist-filter-btn:hover { color: var(--text); border-color: var(--text-ter); }
+  .hist-filter-btn.active { background: var(--accent); border-color: var(--accent); color: var(--k-shell); }
   .hist-list { flex: 1; overflow-y: auto; padding: 12px 24px; display: flex; flex-direction: column; gap: 8px; }
   .hist-empty { text-align: center; color: var(--text-ter); font-size: 13px; padding: 40px 0; }
-  .hist-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 14px; }
+  .hist-item { background: var(--k-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 14px; }
   .hist-item-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
   .hist-item-desc { font-size: 12px; color: var(--text); line-height: 1.45; flex: 1; }
-  .hist-item-time { font-size: 10px; color: var(--text-ter); white-space: nowrap; flex-shrink: 0; }
-  .hist-badge { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; margin-bottom: 4px; }
+  .hist-item-time { font-family: var(--mono); font-size: 10px; color: var(--text-ter); white-space: nowrap; flex-shrink: 0; }
+  .hist-badge { display: inline-block; font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; margin-bottom: 4px; }
   .hb-kpi     { background: var(--blue-dim); color: var(--blue); }
-  .hb-card    { background: var(--amber-dim); color: var(--amber); }
+  .hb-card    { background: var(--amber-dim); color: var(--k-deep-aa); }
   .hb-move    { background: var(--green-dim); color: var(--green); }
-  .hb-delete  { background: rgba(239,68,68,.12); color: #ef4444; }
-  .hb-edit    { background: rgba(168,85,247,.12); color: #c084fc; }
+  .hb-delete  { background: var(--coral-dim); color: var(--coral); }
+  .hb-edit    { background: var(--violet-dim); color: var(--violet); }
 
   /* TOAST */
-  .toast { position: fixed; bottom: 24px; right: 24px; z-index: 300; background: var(--surface); border: 1px solid var(--border-strong); border-left: 3px solid var(--green); border-radius: var(--radius-sm); padding: 10px 18px; font-size: 12px; font-weight: 600; color: var(--green); transform: translateY(60px); opacity: 0; transition: transform .25s, opacity .25s; }
+  .toast { position: fixed; bottom: 24px; right: 24px; z-index: 300; background: var(--surface); border: 1px solid var(--border-strong); border-left: 3px solid var(--green); border-radius: var(--radius-sm); padding: 10px 18px; font-size: 12px; font-weight: 600; color: var(--green); box-shadow: 0 10px 30px rgba(26,35,50,.14); transform: translateY(60px); opacity: 0; transition: transform .25s cubic-bezier(.22,1,.36,1), opacity .25s; }
   .toast.show { transform: translateY(0); opacity: 1; }
 
   /* RESPONSIVE */
@@ -249,22 +295,14 @@
 <!-- HEADER -->
 <header class="header">
   <div class="header-left">
-    <span class="logo-pill" id="brand-pill">300</span>
+    <span class="logo-pill" id="brand-pill">KG</span>
     <div class="brand-switcher" id="brand-switcher"></div>
   </div>
   <div class="header-right">
-    <div class="brand-switcher">
-      <span class="brand-switcher-label">Período</span>
-      <input type="date" id="dt-start" class="date-input">
-      <span class="date-sep">→</span>
-      <input type="date" id="dt-end" class="date-input">
-      <button class="brand-btn date-apply" id="btn-apply" onclick="applyRange()">Aplicar</button>
-    </div>
-    <div class="status-live"><span class="dot-live"></span> Operação ativa</div>
-    <span id="header-date"></span>
+    <div class="status-live"><span class="dot-live"></span> Kanban ativo</div>
     <button class="btn-hist" id="btn-hist-wrap" onclick="openHist()">
       <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1a6 6 0 100 12A6 6 0 007 1zm0 2v4l3 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-      Histórico <span id="hist-count-badge" style="background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;display:none"></span>
+      Histórico <span id="hist-count-badge" style="background:var(--accent);color:var(--k-shell);font-family:var(--mono);font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;display:none"></span>
     </button>
     <button class="btn-save" id="btn-salvar" onclick="saveAll()">Salvar</button>
   </div>
@@ -272,12 +310,8 @@
 
 <main class="main">
 
-  <!-- KPI (um bloco Volume/Conversão/Receita por marca da diretoria) -->
-  <div class="section-label">Indicadores principais — por marca</div>
-  <div id="kpi-brands"></div>
-
   <!-- KANBAN -->
-  <div class="section-label order-kanban">Quadro de testes — kanban ágil</div>
+  <div class="section-label order-kanban">Quadro de demandas — kanban Karaguá</div>
   <div class="kanban-section order-kanban">
     <div class="kanban-toolbar">
       <button class="brand-btn btn-group-mode" id="btn-group-mode" onclick="toggleSelectMode()">⧉ Agrupar cards</button>
@@ -286,32 +320,32 @@
     <div class="kanban-board">
       <div class="kanban-col" id="col-backlog" ondragover="onDragOver(event,'backlog')" ondragleave="onDragLeave(event,'backlog')" ondrop="onDrop(event,'backlog')">
         <div class="kanban-col-head">
-          <div class="col-title-row"><span class="col-name" style="color:var(--blue)">Backlog</span><span class="col-count" id="cnt-backlog">0</span></div>
-          <div class="col-desc">Ideias para testar</div>
+          <div class="col-title-row"><span class="col-name" style="color:#6b7b8d">A Fazer</span><span class="col-count" id="cnt-backlog">0</span></div>
+          <div class="col-desc">Tarefas a iniciar</div>
         </div>
         <div class="kanban-cards" id="cards-backlog"></div>
         <div class="col-add-footer"><button class="btn-add-card" onclick="openModal('backlog')">+ Adicionar card</button></div>
       </div>
       <div class="kanban-col" id="col-teste" ondragover="onDragOver(event,'teste')" ondragleave="onDragLeave(event,'teste')" ondrop="onDrop(event,'teste')">
         <div class="kanban-col-head">
-          <div class="col-title-row"><span class="col-name" style="color:var(--amber)">Em teste</span><span class="col-count" id="cnt-teste">0</span><span class="wip-tag">WIP 10</span></div>
-          <div class="col-desc">Máx. 10 ativos simultâneos</div>
+          <div class="col-title-row"><span class="col-name" style="color:var(--k-deep)">Em Execução</span><span class="col-count" id="cnt-teste">0</span><span class="wip-tag">WIP 10</span></div>
+          <div class="col-desc">Máx. 10 em execução</div>
         </div>
         <div class="kanban-cards" id="cards-teste"></div>
         <div class="col-add-footer"><button class="btn-add-card" onclick="openModal('teste')">+ Adicionar card</button></div>
       </div>
       <div class="kanban-col" id="col-validado" ondragover="onDragOver(event,'validado')" ondragleave="onDragLeave(event,'validado')" ondrop="onDrop(event,'validado')">
         <div class="kanban-col-head">
-          <div class="col-title-row"><span class="col-name" style="color:var(--green)">Validado</span><span class="col-count" id="cnt-validado">0</span></div>
-          <div class="col-desc">Resultado positivo confirmado</div>
+          <div class="col-title-row"><span class="col-name" style="color:var(--k-deep-aa)">Em Validação</span><span class="col-count" id="cnt-validado">0</span></div>
+          <div class="col-desc">Revisão / VVB</div>
         </div>
         <div class="kanban-cards" id="cards-validado"></div>
         <div class="col-add-footer"><button class="btn-add-card" onclick="openModal('validado')">+ Adicionar card</button></div>
       </div>
       <div class="kanban-col" id="col-descartado" ondragover="onDragOver(event,'descartado')" ondragleave="onDragLeave(event,'descartado')" ondrop="onDrop(event,'descartado')">
         <div class="kanban-col-head">
-          <div class="col-title-row"><span class="col-name" style="color:#ef4444">Descartado</span><span class="col-count" id="cnt-descartado">0</span></div>
-          <div class="col-desc">Sem resultado esperado</div>
+          <div class="col-title-row"><span class="col-name" style="color:var(--green)">Concluído</span><span class="col-count" id="cnt-descartado">0</span></div>
+          <div class="col-desc">Finalizado</div>
         </div>
         <div class="kanban-cards" id="cards-descartado"></div>
         <div class="col-add-footer"><button class="btn-add-card" onclick="openModal('descartado')">+ Adicionar card</button></div>
@@ -324,22 +358,35 @@
 <!-- MODAL CARD -->
 <div class="modal-backdrop" id="modal">
   <div class="modal">
-    <h3 id="modal-title">Novo card de teste</h3>
+    <h3 id="modal-title">Novo card de demanda</h3>
     <div class="modal-field">
       <label>Título</label>
-      <input type="text" id="m-title" placeholder="Ex: Prompt V3 com CTA direto">
+      <input type="text" id="m-title" placeholder="Ex: Coletar dados de baseline da área">
+    </div>
+    <div class="modal-row2">
+      <div class="modal-field">
+        <label>Etapa</label>
+        <select id="m-stage">
+          <option value="backlog">A Fazer</option>
+          <option value="teste">Em Execução</option>
+          <option value="validado">Em Validação</option>
+          <option value="descartado">Concluído</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label>Fase do ciclo</label>
+        <select id="m-fase">
+          <option value="">—</option>
+          <option value="Registro/Elegibilidade">Registro/Elegibilidade</option>
+          <option value="Baseline">Baseline</option>
+          <option value="Monitoramento">Monitoramento</option>
+          <option value="Cálculo/Verificação">Cálculo/Verificação</option>
+          <option value="Emissão">Emissão</option>
+        </select>
+      </div>
     </div>
     <div class="modal-field">
-      <label>Etapa</label>
-      <select id="m-stage">
-        <option value="backlog">Backlog</option>
-        <option value="teste">Em teste</option>
-        <option value="validado">Validado</option>
-        <option value="descartado">Descartado</option>
-      </select>
-    </div>
-    <div class="modal-field">
-      <label>Marcas (tags)</label>
+      <label>Metodologias</label>
       <div id="m-tags" class="tag-options"></div>
     </div>
     <div class="modal-row2">
@@ -353,16 +400,16 @@
       </div>
     </div>
     <div class="modal-field">
-      <label>Data de início do teste</label>
+      <label>Data de início</label>
       <input type="date" id="m-date" min="2000-01-01" max="2100-12-31">
     </div>
     <div class="modal-field">
-      <label>Hipótese</label>
-      <textarea id="m-hyp" placeholder="Se fizermos X, acreditamos que Y acontecerá porque Z..."></textarea>
+      <label>Descrição</label>
+      <textarea id="m-hyp" placeholder="O que é a demanda / o que precisa ser feito"></textarea>
     </div>
     <div class="modal-field">
-      <label>Resultado / Aprendizado</label>
-      <textarea id="m-result" placeholder="Preencher após o teste. O que foi observado?"></textarea>
+      <label>Entregável / Evidência</label>
+      <textarea id="m-result" placeholder="Documento, dado, cálculo ou evidência gerada"></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
@@ -383,7 +430,6 @@
   </div>
   <div class="hist-filters">
     <button class="hist-filter-btn active" onclick="setFilter('all',this)">Todos</button>
-    <button class="hist-filter-btn" onclick="setFilter('kpi',this)">KPIs</button>
     <button class="hist-filter-btn" onclick="setFilter('card',this)">Cards</button>
     <button class="hist-filter-btn" onclick="setFilter('move',this)">Movimentos</button>
     <button class="hist-filter-btn" onclick="setFilter('delete',this)">Exclusões</button>

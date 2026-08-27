@@ -1,69 +1,76 @@
-// ── KPI ───────────────────────────────────────────────────────────────────────
-const kpiDefs = {
-  vol:  [
-    { id:'leads',    label:'Leads trabalhados',        fmt:'n' },
-    { id:'contatos', label:'Contatos iniciados',       fmt:'n' },
-    { id:'qualif',   label:'Convidado Webinar',        fmt:'n' },
-    { id:'followup', label:'Conferencia Agendada',     fmt:'n' },
-  ],
-  conv: [
-    { id:'txresp',   label:'Taxa de resposta',         fmt:'%' },
-    { id:'txqual',   label:'Taxa de qualificação',     fmt:'%' },
-  ],
-  rec:  [
-    { id:'opps',     label:'Oportunidades geradas',    fmt:'n' },
-    { id:'receita',  label:'Receita gerada',           fmt:'R$'},
-  ],
-};
+// ── DEMANDAS (projetos) + metodologias ──────────────────────────────────────────
+const PILL = 'KG';
+// Metodologias Verra usadas como TAGS nos cards.
+const METODOLOGIAS = ['VM0033', 'VM0007'];
+// Fases do ciclo de vida (Guardian) — campo "Fase do ciclo" no card.
+const FASES = ['Registro/Elegibilidade', 'Baseline', 'Monitoramento', 'Cálculo/Verificação', 'Emissão'];
 
-// KPIs por marca da diretoria: { [marca]: { [kpiId]: { val, prev } } }
-let kpiByBrand = {};
+// Demandas carregadas de /api/demandas; currentBrand = id da demanda ativa (?brand=).
+let demandas = [];
+let currentBrand = new URLSearchParams(location.search).get('brand') || '';
+// Tags disponíveis no modal do card = metodologias.
+const brandsDaDiretoria = METODOLOGIAS;
 
-// ── MARCAS ──────────────────────────────────────────────────────────────────────
-// pill = selo fixo da empresa; label = nome da marca (botão do seletor + subtítulo).
-// A chave (shelf2, maria, ...) precisa bater com a do servidor (kpiMap.js).
-const PILL = '300';
-// Diretorias e as marcas de cada uma (as marcas viram TAGS nos cards do kanban).
-// A chave (fenix, camaleoes, furia) precisa bater com a do servidor (kpiMap.js).
-const DIRETORIAS = {
-  fenix: { label: 'Guardiões', brands: ['4Beach', 'Ecoville', 'Fast Tennis', 'Suav', 'Maria Lavadeira', 'Mestre de Obra', 'Mestre das Tintas', 'Agilihome'] },
-  furia: { label: 'Furia',     brands: ['Locar-x', 'Brumed', 'Saude Livre Vacinas', 'Doctor Fit', 'Airlocker', 'La Bolaria', 'Shelf'] },
-};
-// currentBrand guarda a CHAVE da diretoria (mantém o nome por compatibilidade).
-const currentBrand = DIRETORIAS[new URLSearchParams(location.search).get('brand')] ? new URLSearchParams(location.search).get('brand') : 'fenix';
-const brandsDaDiretoria = DIRETORIAS[currentBrand].brands;
+function switchBrand(id) {
+  const url = new URL(location.href);
+  url.searchParams.set('brand', id);
+  location.href = url.toString();
+}
+
+async function loadDemandas() {
+  try {
+    const res = await fetch('/api/demandas');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    demandas = await res.json();
+  } catch (e) { console.error('Falha ao carregar demandas:', e); demandas = []; }
+  // se a demanda da URL não existe, cai na primeira disponível
+  if (!demandas.some(d => String(d.id) === String(currentBrand))) {
+    currentBrand = demandas.length ? String(demandas[0].id) : '';
+  }
+  window.__STORE = 'dem' + currentBrand + '_';   // namespace do histórico local
+  renderBrandSwitcher();
+}
+
+async function novaDemanda() {
+  const name = (prompt('Nome da nova demanda principal:') || '').trim();
+  if (!name) return;
+  try {
+    const res = await fetch('/api/demandas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    switchBrand((await res.json()).id);   // recarrega já na nova demanda
+  } catch (e) { alert('Erro ao criar demanda'); }
+}
+async function renomearDemanda() {
+  const d = demandas.find(x => String(x.id) === String(currentBrand));
+  if (!d) return;
+  const name = (prompt('Renomear demanda:', d.name) || '').trim();
+  if (!name || name === d.name) return;
+  try {
+    await fetch('/api/demandas/' + d.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    location.reload();
+  } catch (e) { alert('Erro ao renomear'); }
+}
+async function excluirDemanda() {
+  const d = demandas.find(x => String(x.id) === String(currentBrand));
+  if (!d) return;
+  if (!confirm(`Excluir a demanda "${d.name}" e TODOS os cards dela? Não dá pra desfazer.`)) return;
+  try {
+    await fetch('/api/demandas/' + d.id, { method: 'DELETE' });
+    const url = new URL(location.href); url.searchParams.delete('brand'); location.href = url.toString();
+  } catch (e) { alert('Erro ao excluir'); }
+}
 
 function renderBrandSwitcher() {
   const el = document.getElementById('brand-switcher');
   if (!el) return;
-  el.innerHTML = '<span class="brand-switcher-label">Diretoria</span>' +
-    Object.entries(DIRETORIAS).map(([key, d]) =>
-      `<button class="brand-btn${key === currentBrand ? ' active' : ''}" onclick="switchBrand('${key}')">${d.label}</button>`
-    ).join('');
-}
-
-// Namespace de armazenamento por marca (cache de KPIs, histórico, intervalo).
-const STORE = currentBrand + '_';
-window.__STORE = STORE;
-
-function switchBrand(key) {
-  const url = new URL(location.href);
-  url.searchParams.set('brand', key);
-  location.href = url.toString();
-}
-
-// Filtro por intervalo de datas (ciclo). { start, end } em 'YYYY-MM-DD'.
-let currentRange = { start: today(), end: today() };
-
-// Cache local dos últimos KPIs buscados (fallback enquanto o Hubspot carrega).
-function saveKPIToStorage() {
-  localStorage.setItem(STORE + 'kpi', JSON.stringify({ range: currentRange, byBrand: kpiByBrand }));
-}
-
-function trendHTML(diff) {
-  if (diff > 0) return `<span class="trend up"><svg viewBox="0 0 12 12" fill="none"><path d="M2 9L10 3M10 3H5M10 3V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>+${Math.abs(diff)}</span>`;
-  if (diff < 0) return `<span class="trend down"><svg viewBox="0 0 12 12" fill="none"><path d="M2 3L10 9M10 9H5M10 9V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>-${Math.abs(diff)}</span>`;
-  return `<span class="trend flat">—</span>`;
+  const btns = demandas.map(d =>
+    `<button class="brand-btn${String(d.id) === String(currentBrand) ? ' active' : ''}" onclick="switchBrand('${d.id}')">${d.name}</button>`
+  ).join('');
+  const manage = currentBrand
+    ? `<button class="brand-btn dm-mini" title="Renomear" onclick="renomearDemanda()">✎</button><button class="brand-btn dm-mini dm-del" title="Excluir" onclick="excluirDemanda()">✕</button>`
+    : '';
+  el.innerHTML = '<span class="brand-switcher-label">Demanda</span>' + btns +
+    `<button class="brand-btn dm-new" onclick="novaDemanda()">+ Nova</button>` + manage;
 }
 
 
@@ -101,10 +108,10 @@ async function persistCard(card) {
   return res.json();
 }
 
-// Limite WIP da coluna "Em teste" (máximo de cards simultâneos).
+// Limite WIP da coluna "Em Execução" (máximo de cards simultâneos).
 const WIP_LIMIT = 10;
 
-const stageLabel = { backlog:'Backlog', teste:'Em teste', validado:'Validado', descartado:'Descartado' };
+const stageLabel = { backlog:'A Fazer', teste:'Em Execução', validado:'Em Validação', descartado:'Concluído' };
 const prevStage  = { teste:'backlog', validado:'teste', descartado:'validado' };
 const nextSt     = { backlog:'teste', teste:'validado', validado:'descartado' };
 
@@ -125,7 +132,7 @@ function isDueOverdue(due) {
 
 async function moveCard(id, toStage) {
   if (toStage === 'teste' && cards.filter(c => c.stage === 'teste').length >= WIP_LIMIT) {
-    alert('Limite WIP atingido: máximo ' + WIP_LIMIT + ' cards em teste simultâneos.');
+    alert('Limite WIP atingido: máximo ' + WIP_LIMIT + ' cards em execução simultâneos.');
     return;
   }
   const card = cards.find(c => c.id === id);
@@ -170,7 +177,7 @@ async function onDrop(e, stage) {
   const card = cards.find(c => c.id === dragId);
   if (!card || card.stage === stage) { dragId = null; return; }
   if (stage === 'teste' && cards.filter(c => c.stage === 'teste').length >= WIP_LIMIT) {
-    alert('Limite WIP atingido: máximo ' + WIP_LIMIT + ' cards em teste simultâneos.');
+    alert('Limite WIP atingido: máximo ' + WIP_LIMIT + ' cards em execução simultâneos.');
     dragId = null; return;
   }
   const fromStage = card.stage;
@@ -199,12 +206,13 @@ function getSelectedTags() {
 
 function openModal(stage) {
   editingId = null;
-  document.getElementById('modal-title').textContent = 'Novo card de teste';
+  document.getElementById('modal-title').textContent = 'Novo card';
   document.getElementById('m-title').value = '';
   document.getElementById('m-stage').value = stage;
   document.getElementById('m-owner').value = '';
   document.getElementById('m-date').value = '';
   document.getElementById('m-due').value = '';
+  document.getElementById('m-fase').value = '';
   document.getElementById('m-hyp').value = '';
   document.getElementById('m-result').value = '';
   renderTagOptions([]);
@@ -220,6 +228,7 @@ function openEditModal(id) {
   document.getElementById('m-owner').value = card.owner || '';
   document.getElementById('m-date').value = card.date || '';
   document.getElementById('m-due').value = card.due || '';
+  document.getElementById('m-fase').value = card.fase || '';
   document.getElementById('m-hyp').value = card.hyp || '';
   document.getElementById('m-result').value = card.result || '';
   renderTagOptions(card.tags || []);
@@ -234,13 +243,14 @@ async function saveCard() {
   const stage = document.getElementById('m-stage').value;
   if (stage === 'teste') {
     const count = cards.filter(c => c.stage === 'teste' && c.id !== editingId).length;
-    if (count >= WIP_LIMIT) { alert('Limite WIP: máximo ' + WIP_LIMIT + ' cards em teste.'); return; }
+    if (count >= WIP_LIMIT) { alert('Limite WIP: máximo ' + WIP_LIMIT + ' cards em execução.'); return; }
   }
   const data = {
     title, stage,
     owner: document.getElementById('m-owner').value.trim(),
     date: document.getElementById('m-date').value,
     due: document.getElementById('m-due').value,
+    fase: document.getElementById('m-fase').value,
     hyp: document.getElementById('m-hyp').value.trim(),
     result: document.getElementById('m-result').value.trim(),
     tags: getSelectedTags(),
@@ -356,8 +366,7 @@ function setFilter(f, btn) {
 
 // ── SAVE ALL ──────────────────────────────────────────────────────────────────
 function saveAll() {
-  // Cards já persistem no banco a cada ação; aqui salvamos só KPIs e histórico (locais).
-  saveKPIToStorage();
+  // Cards/grupos já persistem no banco a cada ação; aqui salvamos só o histórico local.
   saveHist();
   addHist('edit', 'Dados salvos manualmente pelo usuário');
   showToast('Dados salvos com sucesso');
@@ -369,104 +378,6 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
-}
-
-// ── FILTRO POR INTERVALO DE DATAS ───────────────────────────────────────────────
-function fmtDateBR(d) {
-  if (!d) return '';
-  const [y, m, dy] = d.split('-');
-  return `${dy}/${m}/${y}`;
-}
-
-function updateHeaderDate() {
-  const { start, end } = currentRange;
-  document.getElementById('header-date').textContent =
-    start === end ? fmtDateBR(start) : `${fmtDateBR(start)} → ${fmtDateBR(end)}`;
-}
-
-// Aplica o intervalo escolhido nos campos de data e busca os KPIs.
-function applyRange() {
-  const start = document.getElementById('dt-start').value;
-  const end = document.getElementById('dt-end').value;
-  if (!start || !end) { alert('Escolha as duas datas (de e até).'); return; }
-  if (start > end) { alert('A data inicial não pode ser maior que a final.'); return; }
-  currentRange = { start, end };
-  localStorage.setItem(STORE + 'range', JSON.stringify(currentRange));
-  updateHeaderDate();
-  loadKPIsFromHubspot();
-}
-
-// ── TAXAS (derivadas dos contadores) ────────────────────────────────────────────
-// Calculadas localmente a partir de leads/contatos/followup — sem buscas extras.
-// Direção: parte de baixo do funil ÷ leads, resultando em 0–100%.
-// Taxas derivadas (por marca). Direção: parte do funil ÷ leads → 0–100%.
-function computeRates(st) {
-  const v = (id) => (st[id] ? st[id].val : 0);
-  const pct = (num, den) => (den > 0 ? Math.round((num / den) * 100) : 0);
-  const setVal = (id, value) => {
-    st[id] = st[id] || { val: 0, prev: 0 };
-    st[id].prev = st[id].val;
-    st[id].val = value;
-  };
-  setVal('txresp', pct(v('contatos'), v('leads')));   // contatos ÷ leads
-  setVal('txqual', pct(v('qualif'), v('leads')));     // convidado webinar ÷ leads
-}
-
-// ── HUBSPOT ────────────────────────────────────────────────────────────────────
-// Chama /api/kpis (diretoria) → { brands: [{ marca, kpis: {id: n} }] }.
-// Cada marca vira um bloco próprio de Volume/Conversão/Receita.
-async function loadKPIsFromHubspot() {
-  try {
-    const q = `?brand=${currentBrand}&start=${currentRange.start}&end=${currentRange.end}`;
-    const res = await fetch('/api/kpis' + q);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    (data.brands || []).forEach(({ marca, kpis }) => {
-      const st = kpiByBrand[marca] = kpiByBrand[marca] || {};
-      Object.entries(kpis).forEach(([id, val]) => {
-        st[id] = st[id] || { val: 0, prev: 0 };
-        st[id].prev = st[id].val;
-        st[id].val = Number(val) || 0;
-      });
-      computeRates(st);
-    });
-    renderKpiBrands();
-    saveKPIToStorage();
-    showToast('KPIs atualizados do Hubspot');
-  } catch (e) {
-    console.error('Falha ao buscar KPIs do Hubspot:', e);
-    // Sem backend rodando (ex: abrindo o HTML solto), mantém os valores locais.
-  }
-}
-
-// Renderiza um conjunto Volume/Conversão/Receita POR MARCA (empilhados).
-function renderKpiBrands() {
-  const host = document.getElementById('kpi-brands');
-  if (!host) return;
-  const fmtVal = (k, val) => (k.fmt === 'R$' ? 'R$ ' + val : (k.fmt === '%' ? val + '%' : val));
-  const rows = (group, st) => kpiDefs[group].map(k => {
-    const s = st[k.id] || { val: 0, prev: 0 };
-    return `<div class="kpi-row">
-      <span class="kpi-label">${k.label}</span>
-      <div class="kpi-right">${trendHTML(s.val - s.prev)}<span class="kpi-val">${fmtVal(k, s.val)}</span></div>
-    </div>`;
-  }).join('');
-  const card = (title, badgeCls, badge, group, st) => `
-    <div class="kpi-card">
-      <div class="kpi-card-head"><div class="kpi-card-title">${title}</div><span class="kpi-badge ${badgeCls}">${badge}</span></div>
-      <div class="kpi-rows">${rows(group, st)}</div>
-    </div>`;
-  host.innerHTML = brandsDaDiretoria.map(marca => {
-    const st = kpiByBrand[marca] || {};
-    return `<div class="brand-kpi">
-      <div class="brand-kpi-name">${marca}</div>
-      <div class="kpi-grid">
-        ${card('Volume', 'badge-vol', 'Vol', 'vol', st)}
-        ${card('Conversão', 'badge-conv', 'Conv', 'conv', st)}
-        ${card('Receita', 'badge-rec', 'R$', 'rec', st)}
-      </div>
-    </div>`;
-  }).join('');
 }
 
 function renderCard(card) {
@@ -485,6 +396,7 @@ function renderCard(card) {
     ${card.hyp ? `<div class="kcard-hyp">"${card.hyp.length > 70 ? card.hyp.slice(0,70)+'…' : card.hyp}"</div>` : ''}
     ${card.result ? `<div class="kcard-result">✓ ${card.result.length > 60 ? card.result.slice(0,60)+'…' : card.result}</div>` : ''}
     <div class="kcard-meta">
+      ${card.fase  ? `<span class="kcard-chip fase-chip">🔄 ${card.fase}</span>` : ''}
       ${card.owner ? `<span class="kcard-chip owner-chip">👤 ${card.owner}</span>` : ''}
       ${card.due   ? `<span class="kcard-chip due-chip${overdue?' overdue':''}">🗓 Entrega: ${fmtDate(card.due)}${overdue?' ⚠️':''}</span>` : ''}
       ${card.date  ? `<span class="kcard-chip">▶ Início: ${fmtDate(card.date)}</span>` : ''}
@@ -594,12 +506,12 @@ async function createGroupFromSelection() {
 
 function renderGroup(g) {
   const members = groupMembers(g);
-  const done = members.filter(m => m.stage === 'validado').length;
+  const done = members.filter(m => m.stage === 'descartado').length;
   const head = `<div class="group-head" onclick="toggleGroup(${g.id})">
       <span class="group-toggle">${g.collapsed ? '▸' : '▾'}</span>
       <span class="group-name">📦 ${g.name}</span>
       <span class="group-count">${members.length}</span>
-      <span class="group-prog">${done}/${members.length} validado</span>
+      <span class="group-prog">${done}/${members.length} concluído</span>
     </div>`;
   if (g.collapsed) return `<div class="kgroup">${head}</div>`;
   const rows = members.map(m => {
@@ -629,36 +541,24 @@ function renderKanban() {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-(function init() {
-  // Aplica a diretoria atual (pill fixo, título da aba e seletor)
-  const dir = DIRETORIAS[currentBrand];
+(async function init() {
   document.getElementById('brand-pill').textContent = PILL;
-  document.title = 'Dashboard de Gestão à Vista — ' + dir.label;
-  renderBrandSwitcher();
 
-  // Intervalo salvo (default: hoje → hoje)
-  const savedRange = localStorage.getItem(STORE + 'range');
-  if (savedRange) currentRange = JSON.parse(savedRange);
-  document.getElementById('dt-start').value = currentRange.start;
-  document.getElementById('dt-end').value = currentRange.end;
+  // Carrega as demandas, resolve a demanda ativa e monta o seletor
+  await loadDemandas();
+  const d = demandas.find(x => String(x.id) === String(currentBrand));
+  document.title = 'Kanban 300' + (d ? ' — ' + d.name : '');
 
-  // Carrega cache local dos KPIs (fallback até o Hubspot responder)
-  const kpiSaved = localStorage.getItem(STORE + 'kpi');
-  if (kpiSaved) {
-    try { kpiByBrand = JSON.parse(kpiSaved).byBrand || {}; } catch {}
-  }
-  renderKpiBrands();
-  updateHeaderDate();
+  // Sem demanda selecionada (ou nenhuma criada): quadro vazio, convida a criar
+  renderKanban();
+  if (!currentBrand) return;
 
-  // Carrega grupos (local, por marca) e depois os cards do banco
+  // Carrega grupos e cards da demanda
   loadGroups();
   loadCards();
 
-  // Carrega histórico
-  const histSaved = localStorage.getItem(STORE + 'hist');
+  // Histórico local (por demanda)
+  const histSaved = localStorage.getItem((window.__STORE || 'dash_') + 'hist');
   if (histSaved) history = JSON.parse(histSaved);
   updateHistBadge();
-
-  // Busca os KPIs do Hubspot ao abrir (silencioso se o backend não estiver no ar)
-  loadKPIsFromHubspot();
 })();
