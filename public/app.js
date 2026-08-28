@@ -547,8 +547,9 @@ function renderKanban() {
   // Carrega as demandas, resolve a demanda ativa e monta o seletor
   await loadDemandas();
   const d = demandas.find(x => String(x.id) === String(currentBrand));
-  document.title = 'Kanban 300' + (d ? ' — ' + d.name : '');
+  document.title = 'Kanban' + (d ? ' - ' + d.name : '');
 
+  
   // Sem demanda selecionada (ou nenhuma criada): quadro vazio, convida a criar
   renderKanban();
   if (!currentBrand) return;
